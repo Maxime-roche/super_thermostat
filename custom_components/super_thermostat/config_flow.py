@@ -11,7 +11,7 @@ from homeassistant.helpers import selector as sel
 
 from .const import (
     ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, CONF_AC_FRACTION, CONF_AC_MIN_ON, CONF_COOL_SOURCES,
-    CONF_MIN_FRACTION, CONF_PRESETS, CONF_VALVES, CONF_ZONE_SEASON,
+    CONF_MIN_FRACTION, CONF_VALVES, CONF_ZONE_SEASON,
     CONF_ADJUST_INTERVAL, CONF_ALLOWED, CONF_AUTOLEARN, CONF_BURNER,
     CONF_CIRCULATOR, CONF_CLIMATE, CONF_CYCLE, 
     CONF_FAIL_OFFSET_COOL, CONF_FAIL_OFFSET_HEAT, CONF_FAILSAFE_POWER, CONF_FALLBACK_TEMP,
@@ -81,9 +81,6 @@ ZONE_SENSORS = vol.Schema(
         vol.Required(CONF_MAX_SENSOR_AGE): _num(5, 1440, 1, "min"),
         vol.Required(CONF_FAILSAFE_POWER): _num(0, 100, 1, "%"),
     }
-)
-ZONE_PRESETS = vol.Schema(
-    {vol.Required(CONF_PRESETS): sel.TextSelector(sel.TextSelectorConfig(multiline=False))}
 )
 ZONE_REGULATION = vol.Schema(
     {
@@ -275,7 +272,7 @@ class SuperThermostatOptionsFlow(OptionsFlow):
             self._opts = dict(self.config_entry.options)
         kind = self.config_entry.data[CONF_TYPE]
         if kind == TYPE_ZONE:
-            menu = ["zone_sensors", "presets", "regulation", "windows", "save"]
+            menu = ["zone_sensors", "regulation", "windows", "save"]
         elif kind == TYPE_BOILER:
             menu = ["boiler_sensors", "tuning", "save"]
         elif kind == TYPE_AC:
@@ -286,9 +283,6 @@ class SuperThermostatOptionsFlow(OptionsFlow):
 
     async def async_step_zone_sensors(self, user_input=None) -> ConfigFlowResult:
         return await self._form("zone_sensors", ZONE_SENSORS, user_input)
-
-    async def async_step_presets(self, user_input=None) -> ConfigFlowResult:
-        return await self._form("presets", ZONE_PRESETS, user_input)
 
     async def async_step_regulation(self, user_input=None) -> ConfigFlowResult:
         return await self._form("regulation", ZONE_REGULATION, user_input)

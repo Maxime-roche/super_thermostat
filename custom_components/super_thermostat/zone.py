@@ -492,6 +492,8 @@ class ZoneController:
             setattr(self.params, key, float(value))
         self._save()
         self._notify()
+        if not key.startswith("preset_"):
+            await self.async_run_cycle()  # coefficient / offset / delta : effet immédiat
 
     async def async_reset_learning(self) -> None:
         self.state.reset_learning()

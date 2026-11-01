@@ -82,7 +82,6 @@
         "title": "Options",
         "menu_options": {
           "zone_sensors": "Sensors, type and cycle",
-          "presets": "Presets (two setpoints each)",
           "regulation": "Regulation",
           "windows": "Openings",
           "boiler_sensors": "Relays, sensors and sources",
@@ -115,15 +114,6 @@
           "boiler_fraction_entity": "Boiler power = heating power × fraction. Empty = 100 %.",
           "season_entity": "Auto mode: when on (summer) the zone cools, otherwise it heats. Empty = the sense follows the temperature (below the heating setpoint: heat; above the cooling setpoint: cool; in between: dead band).",
           "valve_entities": "number entities: the zone writes the opening (%) = boiler fraction, in winter only. Nothing is sent when off, cooling or in summer, nor if the valve already has the right value."
-        }
-      },
-      "presets": {
-        "title": "Presets",
-        "data": {
-          "preset_names": "Presets (comma separated)"
-        },
-        "data_description": {
-          "preset_names": "Jour, Nuit, Parti (or home, sleep, away…) give the standard tile icons; any other name has no icon. Each preset has two setpoints (heating and cooling) in the zone's entities; cooling at 35 °C = cooling off."
         }
       },
       "regulation": {

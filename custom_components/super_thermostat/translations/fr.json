@@ -82,7 +82,6 @@
         "title": "Options",
         "menu_options": {
           "zone_sensors": "Sondes, type et cycle",
-          "presets": "Préréglages (deux consignes chacun)",
           "regulation": "Régulation",
           "windows": "Ouvrants",
           "boiler_sensors": "Relais, sondes et sources",
@@ -115,15 +114,6 @@
           "boiler_fraction_entity": "Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %.",
           "season_entity": "Mode Auto : si activée (été) la zone refroidit, sinon elle chauffe. Vide = le sens suit la température (sous la consigne de chauffe : chauffe ; au-dessus de la consigne de froid : froid ; entre les deux : zone morte).",
           "valve_entities": "Entités number : la zone y écrit l'ouverture (%) = fraction chaudière, en hiver uniquement. Rien n'est envoyé à l'arrêt, en froid ou en été, ni si la vanne est déjà à la bonne valeur."
-        }
-      },
-      "presets": {
-        "title": "Préréglages",
-        "data": {
-          "preset_names": "Préréglages (séparés par des virgules)"
-        },
-        "data_description": {
-          "preset_names": "Jour, Nuit, Parti (ou home, sleep, away…) donnent les icônes standards de la tuile ; un autre nom n'a pas d'icône. Chaque préréglage a deux consignes (chauffe et froid) dans les entités de la zone ; froid à 35 °C = clim coupée."
         }
       },
       "regulation": {

@@ -1,0 +1,388 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Super Thermostat",
+        "menu_options": {
+          "zone": "Add a zone (computes a heating %)",
+          "boiler": "Add boiler management",
+          "fraction": "Add a boiler fraction (boiler / AC split)",
+          "ac": "Add AC management (heating)"
+        }
+      },
+      "zone": {
+        "title": "New zone",
+        "data": {
+          "name": "Zone name",
+          "temperature_entity": "Indoor temperature sensor",
+          "outdoor_entity": "Outdoor temperature sensor",
+          "allowed_modes": "Zone type",
+          "cycle_minutes": "Cycle length"
+        },
+        "data_description": {
+          "allowed_modes": "Defines the modes offered by the zone (heating, cooling or both).",
+          "cycle_minutes": "Recalculation period of the percentage. Also the measurement window for learning."
+        }
+      },
+      "boiler": {
+        "title": "Boiler management",
+        "data": {
+          "name": "Name",
+          "burner_entity": "Burner relay",
+          "circulator_entity": "Circulator relay",
+          "water_temperature_entity": "Water temperature sensor",
+          "power_sources": "Power sources (summed, capped at 100 %)"
+        },
+        "data_description": {
+          "power_sources": "sensor / number / input_number entities: a zone, or any other source you add."
+        }
+      },
+      "fraction": {
+        "title": "Boiler fraction",
+        "data": {
+          "name": "Name",
+          "source_entity": "Reference temperature entity",
+          "seuil_haut": "High threshold: 0 % boiler above",
+          "source_mode": "Calculation mode",
+          "fallback_temperature": "Fallback temperature",
+          "min_fraction": "Minimum fraction to use the boiler",
+          "seuil_bas": "Low threshold: 100 % boiler below"
+        },
+        "data_description": {
+          "source_mode": "'Yesterday's mean' reads the entity history (stable all day, updated at 00:05).",
+          "fallback_temperature": "Used when the reference is unavailable (10 °C like the old template).",
+          "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over)."
+        }
+      },
+      "ac": {
+        "title": "AC management",
+        "data": {
+          "name": "Name",
+          "climate_entity": "AC (climate entity)",
+          "power_sources": "Heating power sources (summed, capped at 100 %)",
+          "cool_sources": "Cooling power sources (optional)",
+          "fraction_entity": "Boiler fraction (AC cut-off)",
+          "summer_entity": "Summer season entity (optional)"
+        },
+        "data_description": {
+          "power_sources": "sensor / number / input_number entities: a zone, or any other source you add.",
+          "cool_sources": "Optional: cooling powers of the zones. Without them the AC only handles heating.",
+          "fraction_entity": "The AC stops heating when this fraction reaches the cut-off. Empty = no cut-off.",
+          "summer_entity": "When on (summer): the AC cools (if cooling sources are set), otherwise the manager leaves the AC alone."
+        }
+      }
+    },
+    "abort": {
+      "single_boiler": "Only one boiler management is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "menu_options": {
+          "zone_sensors": "Sensors, type and cycle",
+          "presets": "Presets (two setpoints each)",
+          "regulation": "Regulation",
+          "windows": "Openings",
+          "boiler_sensors": "Relays, sensors and sources",
+          "tuning": "Timings and safety",
+          "fraction_source": "Reference temperature",
+          "ac_entities": "AC, sources and fraction",
+          "ac_tuning": "Timings",
+          "save": "Save and close"
+        }
+      },
+      "zone_sensors": {
+        "title": "Sensors, type and cycle",
+        "data": {
+          "name": "Zone name",
+          "temperature_entity": "Indoor temperature sensor",
+          "outdoor_entity": "Outdoor temperature sensor",
+          "allowed_modes": "Zone type",
+          "cycle_minutes": "Cycle length",
+          "max_sensor_age": "Max sensor age before failure",
+          "failsafe_power": "Power on sensor failure",
+          "boiler_fraction_entity": "Boiler fraction (0-100 %)",
+          "season_entity": "Season entity (on = summer = cooling)",
+          "valve_entities": "Thermostatic valves (opening = boiler fraction)"
+        },
+        "data_description": {
+          "allowed_modes": "Defines the modes offered by the zone (heating, cooling or both).",
+          "cycle_minutes": "Recalculation period of the percentage. Also the measurement window for learning.",
+          "max_sensor_age": "With no new sensor value for this long, the zone goes into 'sensor failure'.",
+          "failsafe_power": "0 = the zone requests nothing if the sensor is missing.",
+          "boiler_fraction_entity": "Boiler power = heating power × fraction. Empty = 100 %.",
+          "season_entity": "Auto mode: when on (summer) the zone cools, otherwise it heats. Empty = the sense follows the temperature (below the heating setpoint: heat; above the cooling setpoint: cool; in between: dead band).",
+          "valve_entities": "number entities: the zone writes the opening (%) = boiler fraction, in winter only. Nothing is sent when off, cooling or in summer, nor if the valve already has the right value."
+        }
+      },
+      "presets": {
+        "title": "Presets",
+        "data": {
+          "preset_names": "Presets (comma separated)"
+        },
+        "data_description": {
+          "preset_names": "Jour, Nuit, Parti (or home, sleep, away…) give the standard tile icons; any other name has no icon. Each preset has two setpoints (heating and cooling) in the zone's entities; cooling at 35 °C = cooling off."
+        }
+      },
+      "regulation": {
+        "title": "Regulation",
+        "data": {
+          "min_power": "Minimum power",
+          "limit_cycles": "Limit on/off cycles",
+          "autolearn": "Auto-learning",
+          "threshold_hot": "'Previous cycle hot' threshold",
+          "offset_next_full": "Reduction after a hot cycle (0 = off)",
+          "fail_offset_heat": "Heating failure margin",
+          "fail_offset_cool": "Cooling failure margin"
+        },
+        "data_description": {
+          "min_power": "Below this percentage the zone requests nothing: avoids useless tiny demands.",
+          "limit_cycles": "Once heating, the zone only stops below 1 % (instead of the minimum power).",
+          "autolearn": "The zone tunes its own coefficients from the room's real temperature rise. Turn off to freeze them.",
+          "threshold_hot": "If the previous cycle went above this percentage the radiator is still hot: the next cycle is reduced (see reduction below).",
+          "offset_next_full": "Percentage removed from the next cycle after a very hot one, to account for radiator inertia. 0 = off.",
+          "fail_offset_heat": "If the zone heats but the temperature stays more than X °C below the setpoint and keeps falling, 2 cycles in a row: 'heating failure'.",
+          "fail_offset_cool": "Same detection for cooling: temperature more than X °C above the setpoint and rising, 2 cycles in a row."
+        }
+      },
+      "windows": {
+        "title": "Openings",
+        "data": {
+          "windows": "Openings (binary sensors)",
+          "window_stop_delay": "Delay before suspending",
+          "window_restart_delay": "Delay before resuming"
+        },
+        "data_description": {
+          "windows": "Opening sensors: the zone stops when one stays open.",
+          "window_stop_delay": "How long a window stays open before the zone stops.",
+          "window_restart_delay": "Delay after closing before regulation resumes."
+        }
+      },
+      "boiler_sensors": {
+        "title": "Relays, sensors and sources",
+        "data": {
+          "burner_entity": "Burner relay",
+          "circulator_entity": "Circulator relay",
+          "water_temperature_entity": "Water temperature sensor",
+          "power_sources": "Power sources (summed, capped at 100 %)"
+        },
+        "data_description": {
+          "power_sources": "sensor / number / input_number entities: a zone, or any other source you add."
+        }
+      },
+      "tuning": {
+        "title": "Timings and safety",
+        "data": {
+          "post_run_minutes": "Circulator post-run",
+          "min_on_minutes": "Burner minimum on time",
+          "min_off_minutes": "Burner minimum off time",
+          "safety_max": "Safety temperature (burner cut-off)",
+          "water_max_age": "Max water sensor age"
+        },
+        "data_description": {
+          "post_run_minutes": "0 = circulator stops as soon as demand drops to 0."
+        }
+      },
+      "ac_entities": {
+        "title": "AC, sources and fraction",
+        "data": {
+          "climate_entity": "AC (climate entity)",
+          "power_sources": "Heating power sources (summed, capped at 100 %)",
+          "cool_sources": "Cooling power sources (optional)",
+          "fraction_entity": "Boiler fraction (AC cut-off)",
+          "summer_entity": "Summer season entity (optional)"
+        },
+        "data_description": {
+          "power_sources": "sensor / number / input_number entities: a zone, or any other source you add.",
+          "cool_sources": "Optional: cooling powers of the zones. Without them the AC only handles heating.",
+          "fraction_entity": "The AC stops heating when this fraction reaches the cut-off. Empty = no cut-off.",
+          "summer_entity": "When on (summer): the AC cools (if cooling sources are set), otherwise the manager leaves the AC alone."
+        }
+      },
+      "ac_tuning": {
+        "title": "Timings",
+        "data": {
+          "start_delay": "Delay before switching on",
+          "adjust_interval": "Setpoint adjustment interval",
+          "ac_min_on": "Minimum run time",
+          "mode_delay": "Mode → setpoint pause"
+        },
+        "data_description": {
+          "start_delay": "Minimum time since the last change before switching the AC on.",
+          "adjust_interval": "Minimum time between two setpoint changes.",
+          "ac_min_on": "Minimum run time before switching off (protects the compressor).",
+          "mode_delay": "Pause between the mode change and the setpoint."
+        }
+      },
+      "fraction_source": {
+        "title": "Reference temperature",
+        "data": {
+          "source_entity": "Reference temperature entity",
+          "seuil_haut": "High threshold: 0 % boiler above",
+          "source_mode": "Calculation mode",
+          "fallback_temperature": "Fallback temperature",
+          "min_fraction": "Minimum fraction to use the boiler",
+          "seuil_bas": "Low threshold: 100 % boiler below"
+        },
+        "data_description": {
+          "source_mode": "'Yesterday's mean' reads the entity history (stable all day, updated at 00:05).",
+          "fallback_temperature": "Used when the reference is unavailable (10 °C like the old template).",
+          "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over)."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "power_heat": {
+        "name": "Heating power"
+      },
+      "power_cool": {
+        "name": "Cooling power"
+      },
+      "power_boiler": {
+        "name": "Boiler power"
+      },
+      "ac_setpoint": {
+        "name": "Setpoint sent to the AC"
+      },
+      "ac_status": {
+        "name": "Status",
+        "state": {
+          "disabled": "Disabled",
+          "idle": "Idle",
+          "heating": "Heating",
+          "cooling": "Cooling",
+          "fraction_cutoff": "Cut off (boiler fraction)",
+          "summer_season": "Summer season (not managed)"
+        }
+      },
+      "fraction": {
+        "name": "Boiler fraction"
+      },
+      "reference_temperature": {
+        "name": "Reference temperature"
+      },
+      "zone_status": {
+        "name": "Status",
+        "state": {
+          "heating": "Heating",
+          "cooling": "Cooling",
+          "idle": "Idle",
+          "off": "Off",
+          "suspended": "Suspended (opening)",
+          "sensor_failure": "Sensor failure",
+          "actuator_failure": "Heating failure"
+        }
+      },
+      "demand": {
+        "name": "Total demand"
+      },
+      "water_low": {
+        "name": "Water low threshold"
+      },
+      "water_high": {
+        "name": "Water high threshold"
+      },
+      "boiler_status": {
+        "name": "Status",
+        "state": {
+          "disabled": "Disabled",
+          "idle": "Idle",
+          "circulating": "Circulating",
+          "heating": "Heating",
+          "water_sensor_failure": "Water sensor failure",
+          "safety_cutoff": "Safety cut-off"
+        }
+      }
+    },
+    "binary_sensor": {
+      "problem": {
+        "name": "Problem"
+      },
+      "burner": {
+        "name": "Burner"
+      },
+      "circulator": {
+        "name": "Circulator"
+      }
+    },
+    "number": {
+      "coeff_in_heat": {
+        "name": "Heating coefficient (indoor)"
+      },
+      "coeff_out_heat": {
+        "name": "Heating coefficient (outdoor)"
+      },
+      "coeff_in_cool": {
+        "name": "Cooling coefficient (indoor)"
+      },
+      "coeff_out_cool": {
+        "name": "Cooling coefficient (outdoor)"
+      },
+      "offset_heat": {
+        "name": "Heating offset"
+      },
+      "offset_cool": {
+        "name": "Cooling offset"
+      },
+      "delta_order": {
+        "name": "Setpoint delta"
+      },
+      "offset_low": {
+        "name": "Heating setpoint offset at 0 %"
+      },
+      "offset_high": {
+        "name": "Heating setpoint offset at 100 %"
+      },
+      "cool_offset_low": {
+        "name": "Cooling setpoint offset at 0 %"
+      },
+      "cool_offset_high": {
+        "name": "Cooling setpoint offset at 100 %"
+      },
+      "fraction_cutoff": {
+        "name": "Cut-off (boiler fraction)"
+      },
+      "t_min": {
+        "name": "Water temperature at 1 %"
+      },
+      "t_max": {
+        "name": "Water temperature at 100 %"
+      },
+      "offset": {
+        "name": "Low / high threshold offset"
+      }
+    },
+    "switch": {
+      "enabled": {
+        "name": "Management enabled"
+      },
+      "dry_run": {
+        "name": "Simulation (relays not driven)"
+      }
+    },
+    "button": {
+      "reset_learning": {
+        "name": "Reset learning"
+      }
+    }
+  },
+  "selector": {
+    "allowed_modes": {
+      "options": {
+        "heat": "Heating (boiler)",
+        "cool": "Cooling",
+        "all": "Heating + cooling (Auto, two setpoints)"
+      }
+    },
+    "fraction_mode": {
+      "options": {
+        "yesterday_mean": "Yesterday's mean (history)",
+        "value": "Entity value (real time)"
+      }
+    }
+  }
+}

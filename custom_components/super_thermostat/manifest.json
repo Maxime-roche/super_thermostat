@@ -1,0 +1,13 @@
+{
+  "domain": "super_thermostat",
+  "name": "Super Thermostat",
+  "after_dependencies": ["recorder"],
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/maxime/super_thermostat",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/maxime/super_thermostat/issues",
+  "requirements": [],
+  "version": "0.5.0"
+}

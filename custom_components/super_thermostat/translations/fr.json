@@ -1,0 +1,388 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Super Thermostat",
+        "menu_options": {
+          "zone": "Ajouter une zone (calcule un % de chauffe)",
+          "boiler": "Ajouter la gestion chaudière",
+          "fraction": "Ajouter une fraction chaudière (répartition chaudière / clim)",
+          "ac": "Ajouter la gestion de la clim (chauffe)"
+        }
+      },
+      "zone": {
+        "title": "Nouvelle zone",
+        "data": {
+          "name": "Nom de la zone",
+          "temperature_entity": "Sonde de température intérieure",
+          "outdoor_entity": "Sonde de température extérieure",
+          "allowed_modes": "Type de zone",
+          "cycle_minutes": "Durée du cycle"
+        },
+        "data_description": {
+          "allowed_modes": "Définit les modes proposés par la zone (chauffage, climatisation ou les deux).",
+          "cycle_minutes": "Période de recalcul du pourcentage. Sert aussi de fenêtre de mesure pour l'apprentissage."
+        }
+      },
+      "boiler": {
+        "title": "Gestion chaudière",
+        "data": {
+          "name": "Nom",
+          "burner_entity": "Relais du brûleur",
+          "circulator_entity": "Relais du circulateur",
+          "water_temperature_entity": "Sonde de température d'eau",
+          "power_sources": "Sources de puissance (additionnées, plafonnées à 100 %)"
+        },
+        "data_description": {
+          "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez."
+        }
+      },
+      "fraction": {
+        "title": "Fraction chaudière",
+        "data": {
+          "name": "Nom",
+          "source_entity": "Entité de température de référence",
+          "seuil_haut": "Seuil haut : 0 % de chaudière au-dessus",
+          "source_mode": "Mode de calcul",
+          "fallback_temperature": "Température de repli",
+          "min_fraction": "Fraction minimale d'utilisation de la chaudière",
+          "seuil_bas": "Seuil bas : 100 % de chaudière en dessous"
+        },
+        "data_description": {
+          "source_mode": "« Moyenne de la veille » lit l'historique de l'entité (valeur stable toute la journée, mise à jour à 00:05).",
+          "fallback_temperature": "Utilisée si la référence est introuvable (10 °C comme l'ancien template).",
+          "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais)."
+        }
+      },
+      "ac": {
+        "title": "Gestion de la clim",
+        "data": {
+          "name": "Nom",
+          "climate_entity": "Clim (entité climate)",
+          "power_sources": "Sources de puissance de chauffe (additionnées, plafonnées à 100 %)",
+          "cool_sources": "Sources de puissance de froid (facultatif)",
+          "fraction_entity": "Fraction chaudière (coupure de la clim)",
+          "summer_entity": "Entité « saison été » (facultatif)"
+        },
+        "data_description": {
+          "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez.",
+          "cool_sources": "Facultatif : puissances de froid des zones. Sans elles, la clim ne gère que la chauffe.",
+          "fraction_entity": "La clim ne chauffe plus quand cette fraction atteint le seuil de coupure. Vide = pas de coupure.",
+          "summer_entity": "Si activée (été) : la clim refroidit (si des sources de froid sont indiquées), sinon la gestion ne touche plus à la clim."
+        }
+      }
+    },
+    "abort": {
+      "single_boiler": "Une seule gestion chaudière est possible."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "menu_options": {
+          "zone_sensors": "Sondes, type et cycle",
+          "presets": "Préréglages (deux consignes chacun)",
+          "regulation": "Régulation",
+          "windows": "Ouvrants",
+          "boiler_sensors": "Relais, sondes et sources",
+          "tuning": "Temporisations et sécurité",
+          "fraction_source": "Température de référence",
+          "ac_entities": "Clim, sources et fraction",
+          "ac_tuning": "Temporisations",
+          "save": "Enregistrer et fermer"
+        }
+      },
+      "zone_sensors": {
+        "title": "Sondes, type et cycle",
+        "data": {
+          "name": "Nom de la zone",
+          "temperature_entity": "Sonde de température intérieure",
+          "outdoor_entity": "Sonde de température extérieure",
+          "allowed_modes": "Type de zone",
+          "cycle_minutes": "Durée du cycle",
+          "max_sensor_age": "Âge max de la sonde avant défaillance",
+          "failsafe_power": "Puissance en cas de défaillance sonde",
+          "boiler_fraction_entity": "Fraction chaudière (0-100 %)",
+          "season_entity": "Entité « saison » (été = froid)",
+          "valve_entities": "Vannes thermostatiques (ouverture = fraction chaudière)"
+        },
+        "data_description": {
+          "allowed_modes": "Définit les modes proposés par la zone (chauffage, climatisation ou les deux).",
+          "cycle_minutes": "Période de recalcul du pourcentage. Sert aussi de fenêtre de mesure pour l'apprentissage.",
+          "max_sensor_age": "Sans nouvelle valeur de la sonde pendant ce délai, la zone passe en « défaillance sonde ».",
+          "failsafe_power": "0 = la zone ne demande rien si la sonde est absente.",
+          "boiler_fraction_entity": "Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %.",
+          "season_entity": "Mode Auto : si activée (été) la zone refroidit, sinon elle chauffe. Vide = le sens suit la température (sous la consigne de chauffe : chauffe ; au-dessus de la consigne de froid : froid ; entre les deux : zone morte).",
+          "valve_entities": "Entités number : la zone y écrit l'ouverture (%) = fraction chaudière, en hiver uniquement. Rien n'est envoyé à l'arrêt, en froid ou en été, ni si la vanne est déjà à la bonne valeur."
+        }
+      },
+      "presets": {
+        "title": "Préréglages",
+        "data": {
+          "preset_names": "Préréglages (séparés par des virgules)"
+        },
+        "data_description": {
+          "preset_names": "Jour, Nuit, Parti (ou home, sleep, away…) donnent les icônes standards de la tuile ; un autre nom n'a pas d'icône. Chaque préréglage a deux consignes (chauffe et froid) dans les entités de la zone ; froid à 35 °C = clim coupée."
+        }
+      },
+      "regulation": {
+        "title": "Régulation",
+        "data": {
+          "min_power": "Puissance minimale",
+          "limit_cycles": "Limiter les cycles marche/arrêt",
+          "autolearn": "Auto-apprentissage",
+          "threshold_hot": "Seuil « cycle précédent chaud »",
+          "offset_next_full": "Réduction après un cycle chaud (0 = off)",
+          "fail_offset_heat": "Marge détection défaillance chauffage",
+          "fail_offset_cool": "Marge détection défaillance clim"
+        },
+        "data_description": {
+          "min_power": "Sous ce pourcentage, la zone ne demande rien : évite les micro-demandes inutiles.",
+          "limit_cycles": "Une fois en chauffe, la zone ne s'arrête que sous 1 % (au lieu de la puissance minimale).",
+          "autolearn": "La zone corrige seule ses coefficients d'après la montée en température réelle de la pièce. Désactive pour les figer.",
+          "threshold_hot": "Si le cycle précédent a dépassé ce pourcentage, le radiateur est encore chaud : le cycle suivant est réduit (voir réduction ci-dessous).",
+          "offset_next_full": "Pourcentage retiré au cycle suivant après un cycle très chaud, pour tenir compte de l'inertie du radiateur. 0 = désactivé.",
+          "fail_offset_heat": "Si la zone chauffe mais que la température reste plus de X °C sous la consigne et baisse, 2 cycles de suite : statut « défaillance chauffage ».",
+          "fail_offset_cool": "Même détection côté froid : température plus de X °C au-dessus de la consigne et qui monte, 2 cycles de suite."
+        }
+      },
+      "windows": {
+        "title": "Ouvrants",
+        "data": {
+          "windows": "Ouvrants (capteurs binaires)",
+          "window_stop_delay": "Délai avant suspension",
+          "window_restart_delay": "Délai avant reprise"
+        },
+        "data_description": {
+          "windows": "Capteurs d'ouverture : la zone s'arrête quand l'un d'eux reste ouvert.",
+          "window_stop_delay": "Durée d'ouverture avant d'arrêter la zone.",
+          "window_restart_delay": "Délai après fermeture avant de reprendre la régulation."
+        }
+      },
+      "boiler_sensors": {
+        "title": "Relais, sondes et sources",
+        "data": {
+          "burner_entity": "Relais du brûleur",
+          "circulator_entity": "Relais du circulateur",
+          "water_temperature_entity": "Sonde de température d'eau",
+          "power_sources": "Sources de puissance (additionnées, plafonnées à 100 %)"
+        },
+        "data_description": {
+          "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez."
+        }
+      },
+      "tuning": {
+        "title": "Temporisations et sécurité",
+        "data": {
+          "post_run_minutes": "Post-circulation du circulateur",
+          "min_on_minutes": "Durée mini brûleur allumé",
+          "min_off_minutes": "Durée mini brûleur éteint",
+          "safety_max": "Température de sécurité (coupure brûleur)",
+          "water_max_age": "Âge max de la sonde d'eau"
+        },
+        "data_description": {
+          "post_run_minutes": "0 = le circulateur s'arrête dès que la demande tombe à 0."
+        }
+      },
+      "ac_entities": {
+        "title": "Clim, sources et fraction",
+        "data": {
+          "climate_entity": "Clim (entité climate)",
+          "power_sources": "Sources de puissance de chauffe (additionnées, plafonnées à 100 %)",
+          "cool_sources": "Sources de puissance de froid (facultatif)",
+          "fraction_entity": "Fraction chaudière (coupure de la clim)",
+          "summer_entity": "Entité « saison été » (facultatif)"
+        },
+        "data_description": {
+          "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez.",
+          "cool_sources": "Facultatif : puissances de froid des zones. Sans elles, la clim ne gère que la chauffe.",
+          "fraction_entity": "La clim ne chauffe plus quand cette fraction atteint le seuil de coupure. Vide = pas de coupure.",
+          "summer_entity": "Si activée (été) : la clim refroidit (si des sources de froid sont indiquées), sinon la gestion ne touche plus à la clim."
+        }
+      },
+      "ac_tuning": {
+        "title": "Temporisations",
+        "data": {
+          "start_delay": "Délai avant allumage",
+          "adjust_interval": "Intervalle de réglage de la consigne",
+          "ac_min_on": "Durée mini d'allumage",
+          "mode_delay": "Pause mode → consigne"
+        },
+        "data_description": {
+          "start_delay": "Délai minimum depuis le dernier réglage avant d'allumer la clim.",
+          "adjust_interval": "Délai minimum entre deux réglages de consigne.",
+          "ac_min_on": "Durée minimale d'allumage avant extinction (protège le compresseur).",
+          "mode_delay": "Pause entre le changement de mode et l'envoi de la consigne."
+        }
+      },
+      "fraction_source": {
+        "title": "Température de référence",
+        "data": {
+          "source_entity": "Entité de température de référence",
+          "seuil_haut": "Seuil haut : 0 % de chaudière au-dessus",
+          "source_mode": "Mode de calcul",
+          "fallback_temperature": "Température de repli",
+          "min_fraction": "Fraction minimale d'utilisation de la chaudière",
+          "seuil_bas": "Seuil bas : 100 % de chaudière en dessous"
+        },
+        "data_description": {
+          "source_mode": "« Moyenne de la veille » lit l'historique de l'entité (valeur stable toute la journée, mise à jour à 00:05).",
+          "fallback_temperature": "Utilisée si la référence est introuvable (10 °C comme l'ancien template).",
+          "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais)."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "power_heat": {
+        "name": "Puissance de chauffe"
+      },
+      "power_cool": {
+        "name": "Puissance de froid"
+      },
+      "power_boiler": {
+        "name": "Puissance chaudière"
+      },
+      "ac_setpoint": {
+        "name": "Consigne envoyée à la clim"
+      },
+      "ac_status": {
+        "name": "Statut",
+        "state": {
+          "disabled": "Désactivée",
+          "idle": "Au repos",
+          "heating": "Chauffe",
+          "cooling": "Refroidit",
+          "fraction_cutoff": "Coupée (fraction chaudière)",
+          "summer_season": "Saison été (non gérée)"
+        }
+      },
+      "fraction": {
+        "name": "Fraction chaudière"
+      },
+      "reference_temperature": {
+        "name": "Température de référence"
+      },
+      "zone_status": {
+        "name": "Statut",
+        "state": {
+          "heating": "Chauffe",
+          "cooling": "Refroidit",
+          "idle": "Au repos",
+          "off": "Arrêtée",
+          "suspended": "Suspendue (ouvrant)",
+          "sensor_failure": "Défaillance sonde",
+          "actuator_failure": "Défaillance chauffage"
+        }
+      },
+      "demand": {
+        "name": "Demande totale"
+      },
+      "water_low": {
+        "name": "Seuil bas eau"
+      },
+      "water_high": {
+        "name": "Seuil haut eau"
+      },
+      "boiler_status": {
+        "name": "Statut",
+        "state": {
+          "disabled": "Désactivée",
+          "idle": "Au repos",
+          "circulating": "Circulation",
+          "heating": "Chauffe",
+          "water_sensor_failure": "Défaillance sonde d'eau",
+          "safety_cutoff": "Coupure de sécurité"
+        }
+      }
+    },
+    "binary_sensor": {
+      "problem": {
+        "name": "Défaillance"
+      },
+      "burner": {
+        "name": "Brûleur"
+      },
+      "circulator": {
+        "name": "Circulateur"
+      }
+    },
+    "number": {
+      "coeff_in_heat": {
+        "name": "Coefficient chauffe (intérieur)"
+      },
+      "coeff_out_heat": {
+        "name": "Coefficient chauffe (extérieur)"
+      },
+      "coeff_in_cool": {
+        "name": "Coefficient froid (intérieur)"
+      },
+      "coeff_out_cool": {
+        "name": "Coefficient froid (extérieur)"
+      },
+      "offset_heat": {
+        "name": "Offset chauffe"
+      },
+      "offset_cool": {
+        "name": "Offset froid"
+      },
+      "delta_order": {
+        "name": "Delta consigne"
+      },
+      "offset_low": {
+        "name": "Décalage consigne chauffe à 0 %"
+      },
+      "offset_high": {
+        "name": "Décalage consigne chauffe à 100 %"
+      },
+      "cool_offset_low": {
+        "name": "Décalage consigne froid à 0 %"
+      },
+      "cool_offset_high": {
+        "name": "Décalage consigne froid à 100 %"
+      },
+      "fraction_cutoff": {
+        "name": "Seuil de coupure (fraction chaudière)"
+      },
+      "t_min": {
+        "name": "Température d'eau à 1 %"
+      },
+      "t_max": {
+        "name": "Température d'eau à 100 %"
+      },
+      "offset": {
+        "name": "Décalage seuil bas / haut"
+      }
+    },
+    "switch": {
+      "enabled": {
+        "name": "Gestion active"
+      },
+      "dry_run": {
+        "name": "Simulation (ne pilote pas les relais)"
+      }
+    },
+    "button": {
+      "reset_learning": {
+        "name": "Réinitialiser l'apprentissage"
+      }
+    }
+  },
+  "selector": {
+    "allowed_modes": {
+      "options": {
+        "heat": "Chauffage (chaudière)",
+        "cool": "Climatisation",
+        "all": "Chauffage + froid (Auto, deux consignes)"
+      }
+    },
+    "fraction_mode": {
+      "options": {
+        "yesterday_mean": "Moyenne de la veille (historique)",
+        "value": "Valeur de l'entité (temps réel)"
+      }
+    }
+  }
+}

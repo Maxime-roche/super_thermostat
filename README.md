@@ -61,11 +61,11 @@ flowchart LR
 2. Redémarrer Home Assistant.
 3. Aller dans **Paramètres → Appareils et services → Ajouter une intégration → Super Thermostat**.
 
-Avec un dépôt git, il suffit de cloner ou de tirer (`git pull`) le dépôt dans `/config` puis de redémarrer.
+Avec un dépôt git (`https://github.com/Maxime-roche/super_thermostat`), il suffit de cloner ou de tirer (`git pull`) le dépôt dans `/config` puis de redémarrer. Le bouton **?** de l'intégration (Paramètres → Appareils et services) ouvre cette page.
 
 ### HACS (dépôt personnalisé)
 
-**HACS → ⋮ → Dépôts personnalisés**, ajouter l'URL du dépôt avec la catégorie *Intégration*, puis installer et redémarrer.
+**HACS → ⋮ → Dépôts personnalisés**, ajouter `https://github.com/Maxime-roche/super_thermostat` avec la catégorie *Intégration*, puis installer et redémarrer.
 
 ### Mise à jour
 
@@ -77,7 +77,7 @@ Remplacer le dossier `custom_components/super_thermostat/`, redémarrer. Les coe
 
 Ordre conseillé :
 
-1. **Fraction chaudière** (si tu as une chaudière et une clim réversible) : créer l'entrée, puis vérifier la valeur du capteur « Fraction chaudière ».
+1. **Fraction chaudière** (si tu as une chaudière et une clim réversible) : créer l'entrée, puis vérifier les deux fractions et les deux températures qu'elle expose.
 2. **Zones** : créer une zone par pièce. Dans *Configurer*, renseigner la fraction, les vannes et la saison si besoin.
 3. **Gestion chaudière** : choisir les relais, la sonde d'eau et les sources (les capteurs « Puissance chaudière » des zones).
 4. **Gestion clim** : choisir le `climate` et les sources (les capteurs « Puissance de chauffe » des zones).
@@ -106,8 +106,11 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 
 | Champ | Rôle |
 |---|---|
-| Fraction chaudière | Entité 0-100 %. Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %. |
-| Vannes thermostatiques | Entités `number` : la zone y écrit l'ouverture (%) = fraction chaudière, en hiver seulement. |
+| Fraction chaudière | Entité 0-100 % (au choix : fraction « moyenne de la veille » ou « température actuelle » de l'entrée Fraction chaudière, ou toute autre entité). Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %. |
+| Vannes thermostatiques | Entités `number` des vannes (ouverture en %), pilotées par la zone en hiver seulement. Voir [Vannes thermostatiques](#vannes-thermostatiques). |
+| Pilotage des vannes | **Selon la demande de chauffe**, **Suivre la fraction chaudière** ou **Entité personnalisée**. |
+| Ouverture quand la zone demande | Mode « selon la demande » : ouverture appliquée quand la zone demande de la chaudière (100 % conseillé). |
+| Entité d'ouverture personnalisée | Mode « personnalisé » : entité 0-100 calculée ailleurs. |
 | Entité « saison » | `input_boolean` / `switch` / `binary_sensor` : ON = été = froid. Sert au mode Auto. |
 | Âge max de la sonde | Sans nouvelle valeur pendant ce délai : statut « défaillance sonde ». |
 | Puissance en cas de défaillance | Puissance demandée si la sonde est absente (0 par défaut). |
@@ -146,6 +149,20 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 - La consigne de chauffe ne dépasse jamais celle de froid : si tu pousses l'une au-delà de l'autre, l'autre suit.
 - **Consigne de froid à 35 °C = clim coupée.**
 
+#### Vannes thermostatiques
+
+Une zone peut piloter les vannes de ses radiateurs (entités `number` d'ouverture, par exemple `…_valve_setpoint`) :
+
+| Mode | Comportement | Quand l'utiliser |
+|---|---|---|
+| **Selon la demande de chauffe** (recommandé) | Les vannes s'ouvrent (au niveau réglé, 100 % par défaut) quand la zone demande de la chaudière (puissance chaudière > 0), et se ferment sinon. Elles se ferment aussi quand la zone est à l'arrêt, en panne de sonde ou suspendue (fenêtre ouverte). | Le cas général : la chaleur est répartie par la température d'eau de la chaudière, les radiateurs des pièces sans demande restent froids. |
+| **Suivre la fraction chaudière** | Ouverture = fraction chaudière (arrondie). | Pour brider les radiateurs selon la météo et laisser la clim faire le reste. |
+| **Entité personnalisée** | Ouverture = valeur d'une entité 0-100 de ton choix, calculée ailleurs. | Une logique spécifique (template, automatisation, `input_number`…). |
+
+Dans tous les modes : rien n'est envoyé en froid, en été (entité « saison » ON), ni si la vanne est déjà à la bonne valeur, ce qui épargne les piles. Les vannes sont recalculées à chaque cycle de la zone et à chaque changement des entités suivies.
+
+> Conseils : plusieurs radiateurs d'une même pièce se pilotent ensemble (même zone). Pour une vanne sans pièce dédiée, rattache-la à la zone voisine ou crée une zone avec la température de la vanne comme sonde (les sondes intégrées aux vannes mesurent souvent trop chaud près du radiateur). Si la pompe est à vitesse fixe, garder un by-pass hydraulique quand presque toutes les vannes sont fermées.
+
 **Préréglages** : `home` (Jour), `sleep` (Nuit), `away` (Parti). Ils portent les noms standards de Home Assistant, donc la tuile « préréglages » affiche leurs icônes. Chacun a une consigne de chauffe et une de froid, réglables dans les entités `number` de la zone.
 
 **Réglages manuels**
@@ -156,20 +173,28 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 
 ### 2. Fraction chaudière
 
-Remplace un capteur `template` « fraction chaudière ». Calcule un pourcentage de chaudière à partir d'une température de référence.
+Remplace un capteur `template` « fraction chaudière ». À partir d'**une seule entité de température**, l'entrée calcule en permanence deux fractions et expose les deux températures :
+
+| Entité | Description |
+|---|---|
+| **Fraction chaudière (moyenne de la veille)** | Fraction calculée sur la **moyenne de la veille** (historique de l'entité). Valeur stable toute la journée, mise à jour à 00:05. |
+| **Fraction chaudière (température actuelle)** | Fraction calculée sur la **température actuelle**, en temps réel. |
+| **Température moyenne de la veille** | Attributs `source` (`history`, `cache` ou `fallback`) et `as_of`. |
+| **Température actuelle** | Valeur lue sur l'entité source. |
+
+Chaque zone, la gestion clim ou une vanne choisit **laquelle des deux fractions suivre** : il n'y a donc plus de mode à régler.
 
 | Champ | Rôle |
 |---|---|
-| Entité de température de référence | Une entité numérique (ou `weather` / `climate`). |
-| Mode de calcul | **Moyenne de la veille** (historique de l'entité, valeur stable toute la journée, mise à jour à 00:05) ou **Valeur de l'entité** (temps réel). |
-| Température de repli | Utilisée si la référence est introuvable (10 °C). |
+| Entité de température | Une entité numérique (ou `weather` / `climate`, sans moyenne de la veille dans ce cas). |
+| Température de repli | Utilisée pour une température introuvable (10 °C). |
 | Seuil haut | Au-dessus : 0 % de chaudière (9 °C). |
 | Seuil bas | En dessous : 100 % de chaudière (−3 °C). |
 | Fraction minimale d'utilisation | Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (15 %). |
 
-Entre les deux seuils, la fraction varie linéairement. Entités : **Fraction chaudière** (%, avec les attributs `raw_fraction` et `min_fraction`) et **Température de référence** (attributs `source` = `history`, `cache`, `entity` ou `fallback`, et `as_of`).
+Entre les deux seuils, la fraction varie linéairement. Les deux fractions ont les attributs `raw_fraction` (avant seuil minimal), `min_fraction` et `source`.
 
-> Le mode « Moyenne de la veille » lit l'historique du recorder (valeurs numériques de l'entité). Si la lecture échoue, la dernière valeur connue est utilisée, puis la température de repli.
+> La moyenne de la veille lit l'historique du recorder (valeurs numériques de l'entité). Si la lecture échoue, la dernière valeur connue est utilisée, puis la température de repli.
 
 ### 3. Gestion chaudière
 
@@ -321,7 +346,7 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 | La zone reste « Au repos » | Mode Auto sans entité saison, température dans la zone morte entre les deux consignes. |
 | « Défaillance sonde » | La sonde n'a pas de nouvelle valeur depuis plus que « Âge max de la sonde ». |
 | Les coefficients ne bougent pas | Auto-apprentissage désactivé, ou puissance toujours nulle ou saturée à 100 %. |
-| Fraction à 0 % alors qu'il fait froid | Fraction minimale non atteinte, ou référence absente : voir l'attribut `source` de « Température de référence ». |
+| Fraction à 0 % alors qu'il fait froid | Fraction minimale non atteinte, ou température absente : voir `raw_fraction` et `source` des fractions, et « Température moyenne de la veille ». |
 | La chaudière ne s'allume pas | Vérifier le capteur Statut de la chaudière (`water_sensor_failure`, `safety_cutoff`) et que « Simulation » est éteint. |
 | Anciennes entités « non disponibles » après une mise à jour | Supprimer les entités orphelines dans Paramètres → Entités. |
 
@@ -342,6 +367,7 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
+| 0.6.0 | Fraction chaudière : fractions « température actuelle » et « moyenne de la veille » (plus de mode à choisir) et leurs deux températures ; vannes : trois modes (demande, fraction, personnalisé) ; préréglages fixes (Vacances retiré) ; lien du bouton « ? » vers le dépôt. |
 | 0.5.1 | Retrait de l'étape « Préréglages » (trois préréglages fixes), les réglages manuels s'appliquent immédiatement. |
 | 0.5.0 | Préréglages `home` / `sleep` / `away` avec icônes, explications sous chaque champ, fraction minimale, vannes thermostatiques dans les zones. |
 | 0.4.0 | Zone à deux consignes, préréglages à deux consignes, sens actif par saison, froid dans la gestion clim. |

@@ -41,16 +41,14 @@
         "title": "Boiler fraction",
         "data": {
           "name": "Name",
-          "source_entity": "Reference temperature entity",
+          "source_entity": "Temperature entity (current value and history)",
           "seuil_haut": "High threshold: 0 % boiler above",
-          "source_mode": "Calculation mode",
           "fallback_temperature": "Fallback temperature",
           "min_fraction": "Minimum fraction to use the boiler",
           "seuil_bas": "Low threshold: 100 % boiler below"
         },
         "data_description": {
-          "source_mode": "'Yesterday's mean' reads the entity history (stable all day, updated at 00:05).",
-          "fallback_temperature": "Used when the reference is unavailable (10 °C like the old template).",
+          "fallback_temperature": "Used for a missing temperature (10 °C like the old template).",
           "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over)."
         }
       },
@@ -104,7 +102,10 @@
           "failsafe_power": "Power on sensor failure",
           "boiler_fraction_entity": "Boiler fraction (0-100 %)",
           "season_entity": "Season entity (on = summer = cooling)",
-          "valve_entities": "Thermostatic valves (opening = boiler fraction)"
+          "valve_entities": "Thermostatic valves",
+          "valve_mode": "Valve control",
+          "valve_open_level": "Opening when the zone calls for heat",
+          "valve_custom_entity": "Custom opening entity"
         },
         "data_description": {
           "allowed_modes": "Defines the modes offered by the zone (heating, cooling or both).",
@@ -113,7 +114,10 @@
           "failsafe_power": "0 = the zone requests nothing if the sensor is missing.",
           "boiler_fraction_entity": "Boiler power = heating power × fraction. Empty = 100 %.",
           "season_entity": "Auto mode: when on (summer) the zone cools, otherwise it heats. Empty = the sense follows the temperature (below the heating setpoint: heat; above the cooling setpoint: cool; in between: dead band).",
-          "valve_entities": "number entities: the zone writes the opening (%) = boiler fraction, in winter only. Nothing is sent when off, cooling or in summer, nor if the valve already has the right value."
+          "valve_entities": "number entities of the valves (opening in %). Nothing is sent when cooling or in summer, nor if the valve already has the right value.",
+          "valve_mode": "By demand: open when the zone calls for boiler heat, closed otherwise (recommended). Fraction: opening = boiler fraction. Custom: opening = value of the entity below.",
+          "valve_open_level": "'By demand' mode: opening applied when the zone calls for boiler heat (100 % recommended).",
+          "valve_custom_entity": "'Custom' mode: 0-100 numeric entity computed elsewhere (template sensor, input_number…)."
         }
       },
       "regulation": {
@@ -209,16 +213,14 @@
       "fraction_source": {
         "title": "Reference temperature",
         "data": {
-          "source_entity": "Reference temperature entity",
+          "source_entity": "Temperature entity (current value and history)",
           "seuil_haut": "High threshold: 0 % boiler above",
-          "source_mode": "Calculation mode",
           "fallback_temperature": "Fallback temperature",
           "min_fraction": "Minimum fraction to use the boiler",
           "seuil_bas": "Low threshold: 100 % boiler below"
         },
         "data_description": {
-          "source_mode": "'Yesterday's mean' reads the entity history (stable all day, updated at 00:05).",
-          "fallback_temperature": "Used when the reference is unavailable (10 °C like the old template).",
+          "fallback_temperature": "Used for a missing temperature (10 °C like the old template).",
           "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over)."
         }
       }
@@ -250,10 +252,16 @@
         }
       },
       "fraction": {
-        "name": "Boiler fraction"
+        "name": "Boiler fraction (yesterday's mean)"
+      },
+      "fraction_current": {
+        "name": "Boiler fraction (current temperature)"
       },
       "reference_temperature": {
-        "name": "Reference temperature"
+        "name": "Yesterday's mean temperature"
+      },
+      "current_temperature": {
+        "name": "Current temperature"
       },
       "zone_status": {
         "name": "Status",
@@ -368,10 +376,11 @@
         "all": "Heating + cooling (Auto, two setpoints)"
       }
     },
-    "fraction_mode": {
+    "valve_mode": {
       "options": {
-        "yesterday_mean": "Yesterday's mean (history)",
-        "value": "Entity value (real time)"
+        "demand": "By heating demand (open / closed)",
+        "fraction": "Follow the boiler fraction",
+        "custom": "Custom entity"
       }
     }
   }

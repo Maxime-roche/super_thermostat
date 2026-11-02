@@ -2,12 +2,12 @@
   "domain": "super_thermostat",
   "name": "Super Thermostat",
   "after_dependencies": ["recorder"],
-  "codeowners": [],
+  "codeowners": ["@Maxime-roche"],
   "config_flow": true,
-  "documentation": "https://github.com/VOTRE-COMPTE/super_thermostat",
+  "documentation": "https://github.com/Maxime-roche/super_thermostat",
   "integration_type": "service",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/VOTRE-COMPTE/super_thermostat/issues",
+  "issue_tracker": "https://github.com/Maxime-roche/super_thermostat/issues",
   "requirements": [],
-  "version": "0.5.1"
+  "version": "0.6.0"
 }

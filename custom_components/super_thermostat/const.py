@@ -29,8 +29,14 @@ CONF_DIR_DELTA_HEAT = "dir_delta_heat"
 CONF_DIR_DELTA_COOL = "dir_delta_cool"
 CONF_FRACTION_ENTITY = "boiler_fraction_entity"
 CONF_ZONE_SEASON = "season_entity"
-CONF_PRESETS = "preset_names"
+FIXED_PRESETS = "home, sleep, away"  # Jour, Nuit, Parti : fixes
 CONF_VALVES = "valve_entities"
+CONF_VALVE_MODE = "valve_mode"
+CONF_VALVE_LEVEL = "valve_open_level"
+CONF_VALVE_CUSTOM = "valve_custom_entity"
+VALVE_DEMAND = "demand"      # ouvert si la zone demande de la chaudière, fermé sinon
+VALVE_FRACTION = "fraction"  # ouverture = fraction chaudière (comportement historique)
+VALVE_CUSTOM = "custom"      # ouverture = valeur d'une entité choisie
 CONF_WINDOWS = "windows"
 CONF_WINDOW_STOP_DELAY = "window_stop_delay"
 CONF_WINDOW_RESTART_DELAY = "window_restart_delay"
@@ -52,7 +58,8 @@ DEFAULT_ZONE_OPTIONS = {
     CONF_OFFSET_NEXT_FULL: 0,
     CONF_DIR_DELTA_HEAT: 0,
     CONF_DIR_DELTA_COOL: 0,
-    CONF_PRESETS: "home, sleep, away",
+    CONF_VALVE_MODE: "fraction",
+    CONF_VALVE_LEVEL: 100,
     CONF_WINDOW_STOP_DELAY: 2,
     CONF_WINDOW_RESTART_DELAY: 2,
 }

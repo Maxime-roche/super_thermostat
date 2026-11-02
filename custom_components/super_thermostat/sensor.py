@@ -84,13 +84,28 @@ async def async_setup_entry(
         entities += [
             ControllerSensor(
                 c, "fraction", lambda: c.fraction, unit=PERCENTAGE,
-                attrs_fn=lambda: {"raw_fraction": c.raw_fraction, "min_fraction": c.min_fraction},
+                attrs_fn=lambda: {
+                    "raw_fraction": c.raw_fraction_mean, "min_fraction": c.min_fraction,
+                    "source": c.mean_source,
+                },
+            ),
+            ControllerSensor(
+                c, "fraction_current", lambda: c.fraction_current, unit=PERCENTAGE,
+                attrs_fn=lambda: {
+                    "raw_fraction": c.raw_fraction_current, "min_fraction": c.min_fraction,
+                    "source": c.current_source,
+                },
             ),
             ControllerSensor(
                 c, "reference_temperature",
-                lambda: None if c.ref_temp is None else round(c.ref_temp, 1),
+                lambda: None if c.ref_mean is None else round(c.ref_mean, 1),
                 unit=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE,
-                attrs_fn=lambda: {"source": c.ref_source, "as_of": c.ref_date},
+                attrs_fn=lambda: {"source": c.mean_source, "as_of": c.mean_date},
+            ),
+            ControllerSensor(
+                c, "current_temperature",
+                lambda: None if c.ref_current is None else round(c.ref_current, 1),
+                unit=UnitOfTemperature.CELSIUS, device_class=SensorDeviceClass.TEMPERATURE,
             ),
         ]
     else:

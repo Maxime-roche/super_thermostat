@@ -1,9 +1,11 @@
 """Fraction chaudière : part de la chaleur confiée à la chaudière (le reste à la clim).
 
-Remplace le template « Fraction Chaudière Extérieure » :
-  0 % au-dessus de seuil_haut, 100 % sous seuil_bas, linéaire entre les deux,
-  d'après une température de référence = valeur d'une entité OU moyenne de
-  la veille de cette entité (lue dans l'historique, donc stable toute la journée).
+À partir d'UNE entité de température, l'entrée calcule en permanence :
+  * la température actuelle           -> fraction « température actuelle » (temps réel)
+  * la moyenne de la veille (historique, mise à jour à 00:05) -> fraction « moyenne de la veille »
+Chaque fraction : 0 % au-dessus du seuil haut, 100 % sous le seuil bas, linéaire entre les deux,
+et 0 % sous la fraction minimale (radiateurs trop peu ouverts pour que la chaudière serve).
+Les zones, la clim et les vannes choisissent laquelle suivre.
 """
 from __future__ import annotations
 
@@ -21,8 +23,8 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_FALLBACK_TEMP, CONF_FRACTION_MODE, CONF_FRACTION_SOURCE, DEFAULT_FRACTION_OPTIONS,
-    CONF_MIN_FRACTION, CONF_SEUIL_BAS, CONF_SEUIL_HAUT, DOMAIN, MODE_YESTERDAY, STORAGE_VERSION,
+    CONF_FALLBACK_TEMP, CONF_FRACTION_SOURCE, CONF_MIN_FRACTION, CONF_SEUIL_BAS,
+    CONF_SEUIL_HAUT, DEFAULT_FRACTION_OPTIONS, DOMAIN, STORAGE_VERSION,
 )
 from .fraction_logic import fraction_from_temp, time_weighted_mean
 from .helpers import read_number
@@ -41,29 +43,48 @@ class FractionController:
             "seuil_haut": float(self.cfg[CONF_SEUIL_HAUT]),
             "seuil_bas": float(self.cfg[CONF_SEUIL_BAS]),
         }
-        self.ref_temp: float | None = None
-        self.ref_source = "fallback"
-        self.ref_date: str | None = None
+        self.ref_current: float | None = None
+        self.ref_mean: float | None = None
+        self.mean_source = "fallback"  # history | cache | fallback
+        self.mean_date: str | None = None
         self._cached_temp: float | None = None
         self._cached_date: str | None = None
         self._store: Store = Store(hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}")
         self._listeners: list[Callable[[], None]] = []
         self._unsubs: list[CALLBACK_TYPE] = []
 
+    # ---------------------------------------------------------------- valeurs
     @property
     def min_fraction(self) -> float:
         return float(self.cfg[CONF_MIN_FRACTION])
 
     @property
-    def raw_fraction(self) -> float:
-        temp = self.ref_temp if self.ref_temp is not None else float(self.cfg[CONF_FALLBACK_TEMP])
-        return fraction_from_temp(temp, self.values["seuil_haut"], self.values["seuil_bas"])
+    def current_source(self) -> str:
+        return "entity" if self.ref_current is not None else "fallback"
+
+    def _fraction(self, temp: float | None) -> tuple[float, float]:
+        """(brute, finale) pour une température ; repli si absente."""
+        if temp is None:
+            temp = float(self.cfg[CONF_FALLBACK_TEMP])
+        raw = fraction_from_temp(temp, self.values["seuil_haut"], self.values["seuil_bas"])
+        return raw, (0.0 if raw < self.min_fraction else raw)
+
+    @property
+    def raw_fraction_current(self) -> float:
+        return self._fraction(self.ref_current)[0]
+
+    @property
+    def fraction_current(self) -> float:
+        return self._fraction(self.ref_current)[1]
+
+    @property
+    def raw_fraction_mean(self) -> float:
+        return self._fraction(self.ref_mean)[0]
 
     @property
     def fraction(self) -> float:
-        """Sous la fraction minimale, les radiateurs sont trop peu ouverts : la chaudière n'est pas utilisée."""
-        raw = self.raw_fraction
-        return 0.0 if raw < self.min_fraction else raw
+        """Fraction de la moyenne de la veille (entité historique « Fraction chaudière »)."""
+        return self._fraction(self.ref_mean)[1]
 
     # -------------------------------------------------------------- listeners
     @callback
@@ -84,10 +105,7 @@ class FractionController:
 
     # ---------------------------------------------------------------- storage
     def _data(self) -> dict[str, Any]:
-        return {
-            "ref_temp": self.ref_temp if self.ref_source == "history" else self._cached_temp,
-            "ref_date": self.ref_date if self.ref_source == "history" else self._cached_date,
-        }
+        return {"ref_temp": self._cached_temp, "ref_date": self._cached_date}
 
     @callback
     def _save(self) -> None:
@@ -102,12 +120,10 @@ class FractionController:
     # -------------------------------------------------------------- lifecycle
     async def async_start(self) -> None:
         source = self.cfg[CONF_FRACTION_SOURCE]
-        if self.cfg[CONF_FRACTION_MODE] == MODE_YESTERDAY:
-            self._unsubs.append(
-                async_track_time_change(self.hass, self._daily, hour=0, minute=5, second=0)
-            )
-        else:
-            self._unsubs.append(async_track_state_change_event(self.hass, [source], self._on_source))
+        self._unsubs.append(async_track_state_change_event(self.hass, [source], self._on_source))
+        self._unsubs.append(
+            async_track_time_change(self.hass, self._daily, hour=0, minute=5, second=0)
+        )
         unsub = async_at_started(self.hass, self._started)
         if unsub:
             self._unsubs.append(unsub)
@@ -124,16 +140,23 @@ class FractionController:
 
     @callback
     def _on_source(self, _event: Event) -> None:
-        self.hass.async_create_task(self.async_refresh())
+        self.refresh_current()
 
     @callback
     def _daily(self, _now: Any) -> None:
         self.hass.async_create_task(self.async_refresh())
 
     # ---------------------------------------------------------------- calculs
+    @callback
+    def refresh_current(self) -> None:
+        self.ref_current = read_number(self.hass, self.cfg[CONF_FRACTION_SOURCE], temperature=True)
+        self._notify()
+
     async def _yesterday_mean(self) -> float | None:
         """Moyenne pondérée par le temps de l'entité sur la journée d'hier."""
         entity = self.cfg[CONF_FRACTION_SOURCE]
+        if entity.split(".", 1)[0] in ("weather", "climate"):
+            return None  # l'état n'est pas une température : pas de moyenne dans l'historique
         end = dt_util.start_of_local_day()
         start = end - timedelta(days=1)
         try:
@@ -158,21 +181,16 @@ class FractionController:
         return time_weighted_mean(points, start.timestamp(), end.timestamp())
 
     async def async_refresh(self) -> None:
-        source = self.cfg[CONF_FRACTION_SOURCE]
+        """Température actuelle + moyenne de la veille."""
         today = dt_util.now().date().isoformat()
-        if self.cfg[CONF_FRACTION_MODE] == MODE_YESTERDAY:
-            temp = await self._yesterday_mean()
-            if temp is not None:
-                self.ref_temp, self.ref_source, self.ref_date = round(temp, 1), "history", today
-                self._cached_temp, self._cached_date = self.ref_temp, today
-            elif self._cached_temp is not None:
-                self.ref_temp, self.ref_source, self.ref_date = self._cached_temp, "cache", self._cached_date
-            else:
-                self.ref_temp, self.ref_source, self.ref_date = None, "fallback", None
+        self.ref_current = read_number(self.hass, self.cfg[CONF_FRACTION_SOURCE], temperature=True)
+        mean = await self._yesterday_mean()
+        if mean is not None:
+            self.ref_mean, self.mean_source, self.mean_date = round(mean, 1), "history", today
+            self._cached_temp, self._cached_date = self.ref_mean, today
+        elif self._cached_temp is not None:
+            self.ref_mean, self.mean_source, self.mean_date = self._cached_temp, "cache", self._cached_date
         else:
-            temp = read_number(self.hass, source, temperature=True)
-            self.ref_temp = temp
-            self.ref_source = "entity" if temp is not None else "fallback"
-            self.ref_date = today if temp is not None else None
+            self.ref_mean, self.mean_source, self.mean_date = None, "fallback", None
         self._save()
         self._notify()

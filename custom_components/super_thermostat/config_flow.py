@@ -11,17 +11,17 @@ from homeassistant.helpers import selector as sel
 
 from .const import (
     ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, CONF_AC_FRACTION, CONF_AC_MIN_ON, CONF_COOL_SOURCES,
-    CONF_MIN_FRACTION, CONF_VALVES, CONF_ZONE_SEASON,
+    CONF_MIN_FRACTION, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_LEVEL, CONF_VALVE_MODE, CONF_ZONE_SEASON,
     CONF_ADJUST_INTERVAL, CONF_ALLOWED, CONF_AUTOLEARN, CONF_BURNER,
     CONF_CIRCULATOR, CONF_CLIMATE, CONF_CYCLE, 
     CONF_FAIL_OFFSET_COOL, CONF_FAIL_OFFSET_HEAT, CONF_FAILSAFE_POWER, CONF_FALLBACK_TEMP,
-    CONF_FRACTION_ENTITY, CONF_FRACTION_MODE, CONF_FRACTION_SOURCE, CONF_LIMIT_CYCLES,
+    CONF_FRACTION_ENTITY, CONF_FRACTION_SOURCE, CONF_LIMIT_CYCLES,
     CONF_MAX_SENSOR_AGE, CONF_MIN_OFF, CONF_MODE_DELAY, CONF_MIN_ON, CONF_MIN_POWER, CONF_NAME,
     CONF_OFFSET_NEXT_FULL, CONF_OUTDOOR_ENTITY, CONF_POST_RUN, CONF_SAFETY_MAX,
     CONF_SEUIL_BAS, CONF_SEUIL_HAUT, CONF_SOURCES, CONF_START_DELAY, CONF_SUMMER, CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_TYPE, CONF_WATER_MAX_AGE,
     CONF_WATER_TEMP, CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY, CONF_WINDOWS,
     DEFAULT_AC_OPTIONS, DEFAULT_BOILER_OPTIONS, DEFAULT_FRACTION_OPTIONS, DEFAULT_ZONE_OPTIONS, DOMAIN,
-    MODE_VALUE, MODE_YESTERDAY, TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE,
+    TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE,
 )
 
 
@@ -73,6 +73,15 @@ ZONE_SENSORS = vol.Schema(
         vol.Optional(CONF_VALVES): sel.EntitySelector(
             sel.EntitySelectorConfig(domain=["number", "input_number"], multiple=True)
         ),
+        vol.Required(CONF_VALVE_MODE): sel.SelectSelector(
+            sel.SelectSelectorConfig(
+                options=["demand", "fraction", "custom"],
+                translation_key="valve_mode",
+                mode=sel.SelectSelectorMode.DROPDOWN,
+            )
+        ),
+        vol.Required(CONF_VALVE_LEVEL): _num(10, 100, 5, "%"),
+        vol.Optional(CONF_VALVE_CUSTOM): _numeric_entity(),
         vol.Optional(CONF_ZONE_SEASON): sel.EntitySelector(
             sel.EntitySelectorConfig(domain=["input_boolean", "switch", "binary_sensor"])
         ),
@@ -120,17 +129,9 @@ BOILER_TUNING = vol.Schema(
     }
 )
 # champs facultatifs → valeur « vide » quand l'utilisateur les efface
-FRACTION_MODE_SELECTOR = sel.SelectSelector(
-    sel.SelectSelectorConfig(
-        options=[MODE_YESTERDAY, MODE_VALUE],
-        translation_key="fraction_mode",
-        mode=sel.SelectSelectorMode.DROPDOWN,
-    )
-)
 FRACTION_SOURCE = vol.Schema(
     {
         vol.Required(CONF_FRACTION_SOURCE): _temp_sensor(),
-        vol.Required(CONF_FRACTION_MODE): FRACTION_MODE_SELECTOR,
         vol.Required(CONF_FALLBACK_TEMP): _num(-30, 40, 0.5, "°C"),
         vol.Required(CONF_SEUIL_HAUT): _num(-30, 40, 0.5, "°C"),
         vol.Required(CONF_SEUIL_BAS): _num(-30, 40, 0.5, "°C"),
@@ -157,7 +158,7 @@ AC_TUNING = vol.Schema(
     }
 )
 CLEARABLE = {
-    CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [],
+    CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_CUSTOM: "",
     CONF_AC_FRACTION: "", CONF_SUMMER: "", CONF_ZONE_SEASON: "", CONF_COOL_SOURCES: [],
 }
 
@@ -215,7 +216,6 @@ class SuperThermostatConfigFlow(ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_NAME, default="Fraction chaudière"): str,
                 vol.Required(CONF_FRACTION_SOURCE): _temp_sensor(),
-                vol.Required(CONF_FRACTION_MODE, default=MODE_YESTERDAY): FRACTION_MODE_SELECTOR,
                 vol.Required(
                     CONF_FALLBACK_TEMP, default=DEFAULT_FRACTION_OPTIONS[CONF_FALLBACK_TEMP]
                 ): _num(-30, 40, 0.5, "°C"),

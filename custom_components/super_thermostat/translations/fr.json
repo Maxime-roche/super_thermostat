@@ -41,16 +41,14 @@
         "title": "Fraction chaudière",
         "data": {
           "name": "Nom",
-          "source_entity": "Entité de température de référence",
+          "source_entity": "Entité de température (valeur actuelle et historique)",
           "seuil_haut": "Seuil haut : 0 % de chaudière au-dessus",
-          "source_mode": "Mode de calcul",
           "fallback_temperature": "Température de repli",
           "min_fraction": "Fraction minimale d'utilisation de la chaudière",
           "seuil_bas": "Seuil bas : 100 % de chaudière en dessous"
         },
         "data_description": {
-          "source_mode": "« Moyenne de la veille » lit l'historique de l'entité (valeur stable toute la journée, mise à jour à 00:05).",
-          "fallback_temperature": "Utilisée si la référence est introuvable (10 °C comme l'ancien template).",
+          "fallback_temperature": "Utilisée pour une température introuvable (10 °C comme l'ancien template).",
           "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais)."
         }
       },
@@ -104,7 +102,10 @@
           "failsafe_power": "Puissance en cas de défaillance sonde",
           "boiler_fraction_entity": "Fraction chaudière (0-100 %)",
           "season_entity": "Entité « saison » (été = froid)",
-          "valve_entities": "Vannes thermostatiques (ouverture = fraction chaudière)"
+          "valve_entities": "Vannes thermostatiques",
+          "valve_mode": "Pilotage des vannes",
+          "valve_open_level": "Ouverture quand la zone demande",
+          "valve_custom_entity": "Entité d'ouverture personnalisée"
         },
         "data_description": {
           "allowed_modes": "Définit les modes proposés par la zone (chauffage, climatisation ou les deux).",
@@ -113,7 +114,10 @@
           "failsafe_power": "0 = la zone ne demande rien si la sonde est absente.",
           "boiler_fraction_entity": "Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %.",
           "season_entity": "Mode Auto : si activée (été) la zone refroidit, sinon elle chauffe. Vide = le sens suit la température (sous la consigne de chauffe : chauffe ; au-dessus de la consigne de froid : froid ; entre les deux : zone morte).",
-          "valve_entities": "Entités number : la zone y écrit l'ouverture (%) = fraction chaudière, en hiver uniquement. Rien n'est envoyé à l'arrêt, en froid ou en été, ni si la vanne est déjà à la bonne valeur."
+          "valve_entities": "Entités number des vannes (ouverture en %). Rien n'est envoyé en froid ni en été, ni si la vanne est déjà à la bonne valeur.",
+          "valve_mode": "Selon la demande : ouvertes si la zone demande de la chaudière, fermées sinon (recommandé). Fraction : ouverture = fraction chaudière. Personnalisé : ouverture = valeur de l'entité ci-dessous.",
+          "valve_open_level": "Mode « selon la demande » : ouverture appliquée quand la zone demande de la chaudière (100 % conseillé).",
+          "valve_custom_entity": "Mode « personnalisé » : entité numérique 0-100 calculée ailleurs (capteur template, input_number…)."
         }
       },
       "regulation": {
@@ -209,16 +213,14 @@
       "fraction_source": {
         "title": "Température de référence",
         "data": {
-          "source_entity": "Entité de température de référence",
+          "source_entity": "Entité de température (valeur actuelle et historique)",
           "seuil_haut": "Seuil haut : 0 % de chaudière au-dessus",
-          "source_mode": "Mode de calcul",
           "fallback_temperature": "Température de repli",
           "min_fraction": "Fraction minimale d'utilisation de la chaudière",
           "seuil_bas": "Seuil bas : 100 % de chaudière en dessous"
         },
         "data_description": {
-          "source_mode": "« Moyenne de la veille » lit l'historique de l'entité (valeur stable toute la journée, mise à jour à 00:05).",
-          "fallback_temperature": "Utilisée si la référence est introuvable (10 °C comme l'ancien template).",
+          "fallback_temperature": "Utilisée pour une température introuvable (10 °C comme l'ancien template).",
           "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais)."
         }
       }
@@ -250,10 +252,16 @@
         }
       },
       "fraction": {
-        "name": "Fraction chaudière"
+        "name": "Fraction chaudière (moyenne de la veille)"
+      },
+      "fraction_current": {
+        "name": "Fraction chaudière (température actuelle)"
       },
       "reference_temperature": {
-        "name": "Température de référence"
+        "name": "Température moyenne de la veille"
+      },
+      "current_temperature": {
+        "name": "Température actuelle"
       },
       "zone_status": {
         "name": "Statut",
@@ -368,10 +376,11 @@
         "all": "Chauffage + froid (Auto, deux consignes)"
       }
     },
-    "fraction_mode": {
+    "valve_mode": {
       "options": {
-        "yesterday_mean": "Moyenne de la veille (historique)",
-        "value": "Valeur de l'entité (temps réel)"
+        "demand": "Selon la demande de chauffe (ouvert / fermé)",
+        "fraction": "Suivre la fraction chaudière",
+        "custom": "Entité personnalisée"
       }
     }
   }

@@ -24,10 +24,10 @@ from .const import (
     CONF_CYCLE, CONF_DIR_DELTA_COOL, CONF_DIR_DELTA_HEAT, CONF_FAIL_OFFSET_COOL,
     CONF_FAIL_OFFSET_HEAT, CONF_FAILSAFE_POWER, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES,
     CONF_MAX_SENSOR_AGE, CONF_MIN_POWER, CONF_OFFSET_NEXT_FULL, CONF_OUTDOOR_ENTITY,
-    CONF_PRESETS, CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVES, CONF_WINDOWS,
+    CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_LEVEL, CONF_VALVE_MODE, CONF_WINDOWS,
     CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY, CONF_ZONE_SEASON,
-    DEFAULT_TARGET_COOL, DEFAULT_TARGET_HEAT, DEFAULT_ZONE_OPTIONS, DOMAIN,
-    PRESET_ALIASES, PRESET_DEFAULTS, STORAGE_VERSION, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
+    DEFAULT_TARGET_COOL, DEFAULT_TARGET_HEAT, DEFAULT_ZONE_OPTIONS, DOMAIN, FIXED_PRESETS,
+    PRESET_ALIASES, PRESET_DEFAULTS, STORAGE_VERSION, VALVE_CUSTOM, VALVE_DEMAND, VALVE_FRACTION, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
     Z_OFF, Z_SENSOR_FAILURE, Z_SUSPENDED,
 )
 from .engine import (
@@ -67,9 +67,7 @@ class ZoneController:
         self.target_heat: float = DEFAULT_TARGET_HEAT
         self.target_cool: float = DEFAULT_TARGET_COOL
         # préréglages : {identifiant: nom affiché} et leurs deux consignes
-        self.preset_names: dict[str, str] = parse_preset_names(self.cfg.get(CONF_PRESETS)) or parse_preset_names(
-            DEFAULT_ZONE_OPTIONS[CONF_PRESETS]
-        )
+        self.preset_names: dict[str, str] = parse_preset_names(FIXED_PRESETS)
         self.presets: dict[str, dict[str, float]] = {
             slug: dict(zip(("heat", "cool"), PRESET_DEFAULTS.get(slug, (DEFAULT_TARGET_HEAT, DEFAULT_TARGET_COOL))))
             for slug in self.preset_names
@@ -213,6 +211,12 @@ class ZoneController:
                     self.hass, [self.cfg[CONF_FRACTION_ENTITY]], self._on_fraction_event
                 )
             )
+        if self.cfg.get(CONF_VALVE_CUSTOM) and self.cfg.get(CONF_VALVE_MODE) == VALVE_CUSTOM:
+            self._unsubs.append(
+                async_track_state_change_event(
+                    self.hass, [self.cfg[CONF_VALVE_CUSTOM]], self._on_fraction_event
+                )
+            )
         if self.cfg.get(CONF_ZONE_SEASON):
             self._unsubs.append(
                 async_track_state_change_event(
@@ -266,19 +270,37 @@ class ZoneController:
         self._save()
         self._notify()
 
+    def _valve_target(self) -> int | None:
+        """Ouverture voulue (0-100) ou None = ne rien envoyer."""
+        mode = self.cfg.get(CONF_VALVE_MODE, VALVE_FRACTION)
+        if mode == VALVE_DEMAND:
+            # fermé quand la zone ne demande rien (y compris à l'arrêt, panne ou fenêtre ouverte)
+            return int(self.cfg.get(CONF_VALVE_LEVEL, 100)) if self.power_boiler > 0 else 0
+        if self.hvac_mode == "off":
+            return None
+        if mode == VALVE_CUSTOM:
+            value = read_number(self.hass, self.cfg.get(CONF_VALVE_CUSTOM))
+            return None if value is None else int(round(max(0.0, min(100.0, value))))
+        return int(round(self.fraction))  # VALVE_FRACTION
+
     @callback
     def _drive_valves(self) -> None:
-        """Vannes thermostatiques : ouverture (%) = fraction chaudière, en hiver seulement.
+        """Vannes thermostatiques : trois façons de les piloter, en hiver seulement.
 
-        Rien n'est envoyé à l'arrêt, en été / en froid, ni si la vanne est déjà à la bonne valeur
+        * « demande » : ouvertes (niveau réglable) si la zone demande de la chaudière, fermées sinon ;
+        * « fraction » : ouverture = fraction chaudière ;
+        * « personnalisé » : ouverture = valeur d'une entité choisie (calculée ailleurs).
+        Rien n'est envoyé en froid ni en été, ni si la vanne est déjà à la bonne valeur
         (les vannes sur pile n'aiment pas les écritures inutiles).
         """
         valves = self.cfg.get(CONF_VALVES) or []
-        if not valves or self.hvac_mode in ("off", "cool") or self.sense == COOL:
+        if not valves or self.hvac_mode == "cool" or self.sense == COOL:
             return
         if self._summer() is True:
             return
-        value = int(round(self.fraction))
+        value = self._valve_target()
+        if value is None:
+            return
         for entity in valves:
             state = self.hass.states.get(entity)
             if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):

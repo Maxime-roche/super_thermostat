@@ -43,7 +43,7 @@ flowchart LR
     Z -- Puissance de chauffe<br/>totale --> C[Gestion clim]
     Z -- Puissance de froid --> C
     F -- seuil de coupure --> C
-    Z -- ouverture = fraction --> V[Vannes thermostatiques]
+    Z -- ouverture proportionnelle<br/>à la demande --> V[Vannes thermostatiques]
 ```
 
 - Une **zone** = une pièce (ou un groupe de pièces) avec **deux consignes** : chauffe et froid. L'écart entre les deux est une zone morte, la chauffe et la clim ne peuvent pas se battre.
@@ -78,7 +78,7 @@ Remplacer le dossier `custom_components/super_thermostat/`, redémarrer. Les coe
 Ordre conseillé :
 
 1. **Fraction chaudière** (si tu as une chaudière et une clim réversible) : créer l'entrée, puis vérifier les deux fractions et les deux températures qu'elle expose.
-2. **Zones** : créer une zone par pièce. Dans *Configurer*, renseigner la fraction, les vannes et la saison si besoin.
+2. **Zones** : créer une zone par pièce. Dans *Configurer*, renseigner la fraction et la saison (*Sondes, type et cycle*) et, si tu as des vannes, l'onglet *Vannes thermostatiques*.
 3. **Gestion chaudière** : choisir les relais, la sonde d'eau et les sources (les capteurs « Puissance chaudière » des zones).
 4. **Gestion clim** : choisir le `climate` et les sources (les capteurs « Puissance de chauffe » des zones).
 5. **Active « Simulation »** sur la chaudière et la clim. Observe pendant un moment les capteurs de statut et les seuils : rien n'est envoyé aux appareils.
@@ -107,13 +107,11 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 | Champ | Rôle |
 |---|---|
 | Fraction chaudière | Entité 0-100 % (au choix : fraction « moyenne de la veille » ou « température actuelle » de l'entrée Fraction chaudière, ou toute autre entité). Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %. |
-| Vannes thermostatiques | Entités `number` des vannes (ouverture en %), pilotées par la zone en hiver seulement. Voir [Vannes thermostatiques](#vannes-thermostatiques). |
-| Pilotage des vannes | **Selon la demande de chauffe**, **Suivre la fraction chaudière** ou **Entité personnalisée**. |
-| Ouverture quand la zone demande | Mode « selon la demande » : ouverture appliquée quand la zone demande de la chaudière (100 % conseillé). |
-| Entité d'ouverture personnalisée | Mode « personnalisé » : entité 0-100 calculée ailleurs. |
 | Entité « saison » | `input_boolean` / `switch` / `binary_sensor` : ON = été = froid. Sert au mode Auto. |
 | Âge max de la sonde | Sans nouvelle valeur pendant ce délai : statut « défaillance sonde ». |
 | Puissance en cas de défaillance | Puissance demandée si la sonde est absente (0 par défaut). |
+
+**Configurer → Vannes thermostatiques** : voir [Vannes thermostatiques](#vannes-thermostatiques).
 
 **Configurer → Régulation**
 
@@ -151,17 +149,28 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 
 #### Vannes thermostatiques
 
-Une zone peut piloter les vannes de ses radiateurs (entités `number` d'ouverture, par exemple `…_valve_setpoint`) :
+Dans **Configurer → Vannes thermostatiques**, une zone peut piloter les vannes de ses radiateurs (entités `number` d'ouverture, par exemple `…_valve_setpoint`).
 
-| Mode | Comportement | Quand l'utiliser |
-|---|---|---|
-| **Selon la demande de chauffe** (recommandé) | Les vannes s'ouvrent (au niveau réglé, 100 % par défaut) quand la zone demande de la chaudière (puissance chaudière > 0), et se ferment sinon. Elles se ferment aussi quand la zone est à l'arrêt, en panne de sonde ou suspendue (fenêtre ouverte). | Le cas général : la chaleur est répartie par la température d'eau de la chaudière, les radiateurs des pièces sans demande restent froids. |
-| **Suivre la fraction chaudière** | Ouverture = fraction chaudière (arrondie). | Pour brider les radiateurs selon la météo et laisser la clim faire le reste. |
-| **Entité personnalisée** | Ouverture = valeur d'une entité 0-100 de ton choix, calculée ailleurs. | Une logique spécifique (template, automatisation, `input_number`…). |
+| Champ | Rôle |
+|---|---|
+| Vannes | Les entités d'ouverture à piloter (plusieurs radiateurs d'une même pièce se pilotent ensemble). |
+| Pilotage des vannes | **Proportionnel à la demande** (recommandé), **Suivre la fraction chaudière** ou **Entité personnalisée**. |
+| Demande suivie | Mode proportionnel : la **puissance chaudière** de la zone (recommandé : c'est la part de chaleur que fournissent les radiateurs) ou la puissance de chauffe totale. |
+| Ouverture à 1 % de demande | Par exemple 15 %. |
+| Ouverture à 100 % de demande | Par exemple 70 %. Entre les deux, l'ouverture varie linéairement. |
+| Écart minimal avant de changer l'ouverture | La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (5 % par défaut). La fermeture complète est toujours appliquée. |
+| Garder ouvert tant qu'aucune autre zone ne demande | Voir ci-dessous (activé par défaut). |
+| Entité d'ouverture | Mode personnalisé : une entité 0-100 calculée ailleurs (template, `input_number`…). |
 
-Dans tous les modes : rien n'est envoyé en froid, en été (entité « saison » ON), ni si la vanne est déjà à la bonne valeur, ce qui épargne les piles. Les vannes sont recalculées à chaque cycle de la zone et à chaque changement des entités suivies.
+**Mode proportionnel.** Avec 15 % à 1 % et 70 % à 100 % : une demande de 1 % ouvre à 15 %, 50 % à environ 43 %, 100 % à 70 %. Une plage réduite évite les vannes très ouvertes, qui font chauffer les radiateurs au détriment des autres pièces, et très fermées, qui laissent passer trop peu de débit. Mettre la même valeur aux deux extrémités donne un fonctionnement ouvert / fermé.
 
-> Conseils : plusieurs radiateurs d'une même pièce se pilotent ensemble (même zone). Pour une vanne sans pièce dédiée, rattache-la à la zone voisine ou crée une zone avec la température de la vanne comme sonde (les sondes intégrées aux vannes mesurent souvent trop chaud près du radiateur). Si la pompe est à vitesse fixe, garder un by-pass hydraulique quand presque toutes les vannes sont fermées.
+**Quand la demande tombe à 0.** Avec « Garder ouvert » (par défaut), la vanne reste à son ouverture actuelle tant qu'aucune autre zone ne demande de chaudière, car circulateur et brûleur sont alors à l'arrêt et fermer la vanne pour la rouvrir plus tard ne sert à rien. Dès qu'une autre zone demande de la chaudière, la vanne se ferme (pour ne pas chauffer une pièce qui n'en a pas besoin). Sans cette option, elle se ferme tout de suite.
+
+**Autres modes.** *Suivre la fraction chaudière* : ouverture = fraction. *Entité personnalisée* : ouverture = valeur de l'entité choisie.
+
+Dans tous les modes : rien n'est envoyé en froid, en été (entité « saison » ON), ni quand l'écart avec l'ouverture actuelle est inférieur à l'écart minimal, ce qui épargne les piles. Les vannes sont recalculées à chaque cycle de la zone, à chaque changement de demande d'une zone et à chaque changement des entités suivies. Le capteur **Ouverture des vannes** de la zone affiche l'ouverture voulue, avec en attributs le mode, la demande suivie, la demande des autres zones et l'état des vannes.
+
+> Conseils : pour une vanne sans pièce dédiée, rattache-la à la zone voisine ou crée une zone avec la température de la vanne comme sonde (les sondes intégrées aux vannes mesurent souvent trop chaud près du radiateur). Si la pompe est à vitesse fixe, garder un by-pass hydraulique quand presque toutes les vannes sont fermées.
 
 **Préréglages** : `home` (Jour), `sleep` (Nuit), `away` (Parti). Ils portent les noms standards de Home Assistant, donc la tuile « préréglages » affiche leurs icônes. Chacun a une consigne de chauffe et une de froid, réglables dans les entités `number` de la zone.
 
@@ -367,6 +376,7 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
+| 0.7.0 | Onglet « Vannes thermostatiques » dans les options des zones ; ouverture proportionnelle à la demande (plage réglable), écart minimal, vannes gardées ouvertes tant qu'aucune autre zone ne demande ; capteur « Ouverture des vannes ». |
 | 0.6.0 | Fraction chaudière : fractions « température actuelle » et « moyenne de la veille » (plus de mode à choisir) et leurs deux températures ; vannes : trois modes (demande, fraction, personnalisé) ; préréglages fixes (Vacances retiré) ; lien du bouton « ? » vers le dépôt. |
 | 0.5.1 | Retrait de l'étape « Préréglages » (trois préréglages fixes), les réglages manuels s'appliquent immédiatement. |
 | 0.5.0 | Préréglages `home` / `sleep` / `away` avec icônes, explications sous chaque champ, fraction minimale, vannes thermostatiques dans les zones. |

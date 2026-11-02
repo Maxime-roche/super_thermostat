@@ -34,9 +34,6 @@ CONF_VALVES = "valve_entities"
 CONF_VALVE_MODE = "valve_mode"
 CONF_VALVE_LEVEL = "valve_open_level"
 CONF_VALVE_CUSTOM = "valve_custom_entity"
-VALVE_DEMAND = "demand"      # ouvert si la zone demande de la chaudière, fermé sinon
-VALVE_FRACTION = "fraction"  # ouverture = fraction chaudière (comportement historique)
-VALVE_CUSTOM = "custom"      # ouverture = valeur d'une entité choisie
 CONF_WINDOWS = "windows"
 CONF_WINDOW_STOP_DELAY = "window_stop_delay"
 CONF_WINDOW_RESTART_DELAY = "window_restart_delay"
@@ -44,6 +41,18 @@ CONF_WINDOW_RESTART_DELAY = "window_restart_delay"
 ALLOWED_HEAT = "heat"
 ALLOWED_COOL = "cool"
 ALLOWED_ALL = "all"
+
+CONF_VALVE_FOLLOW = "valve_follow"
+CONF_VALVE_OPEN_MIN = "valve_open_min"
+CONF_VALVE_OPEN_MAX = "valve_open_max"
+CONF_VALVE_MIN_STEP = "valve_min_step"
+CONF_VALVE_KEEP_OPEN = "valve_keep_open"
+VALVE_DEMAND = "demand"            # ancien mode « ouvert / fermé » (traité comme proportionnel min = max)
+VALVE_PROPORTIONAL = "proportional"  # ouverture proportionnelle à la demande de la zone
+VALVE_FRACTION = "fraction"        # ouverture = fraction chaudière
+VALVE_CUSTOM = "custom"            # ouverture = valeur d'une entité choisie
+FOLLOW_BOILER = "boiler"           # demande suivie : puissance chaudière de la zone
+FOLLOW_TOTAL = "total"             # demande suivie : puissance de chauffe totale
 
 DEFAULT_ZONE_OPTIONS = {
     CONF_CYCLE: 60,
@@ -58,8 +67,12 @@ DEFAULT_ZONE_OPTIONS = {
     CONF_OFFSET_NEXT_FULL: 0,
     CONF_DIR_DELTA_HEAT: 0,
     CONF_DIR_DELTA_COOL: 0,
-    CONF_VALVE_MODE: "fraction",
-    CONF_VALVE_LEVEL: 100,
+    CONF_VALVE_LEVEL: 100,  # ancien mode « demande »
+    CONF_VALVE_FOLLOW: FOLLOW_BOILER,
+    CONF_VALVE_OPEN_MIN: 15,
+    CONF_VALVE_OPEN_MAX: 70,
+    CONF_VALVE_MIN_STEP: 5,
+    CONF_VALVE_KEEP_OPEN: True,
     CONF_WINDOW_STOP_DELAY: 2,
     CONF_WINDOW_RESTART_DELAY: 2,
 }

@@ -80,6 +80,7 @@
         "title": "Options",
         "menu_options": {
           "zone_sensors": "Sensors, type and cycle",
+          "valves": "Thermostatic valves",
           "regulation": "Regulation",
           "windows": "Openings",
           "boiler_sensors": "Relays, sensors and sources",
@@ -101,11 +102,7 @@
           "max_sensor_age": "Max sensor age before failure",
           "failsafe_power": "Power on sensor failure",
           "boiler_fraction_entity": "Boiler fraction (0-100 %)",
-          "season_entity": "Season entity (on = summer = cooling)",
-          "valve_entities": "Thermostatic valves",
-          "valve_mode": "Valve control",
-          "valve_open_level": "Opening when the zone calls for heat",
-          "valve_custom_entity": "Custom opening entity"
+          "season_entity": "Season entity (on = summer = cooling)"
         },
         "data_description": {
           "allowed_modes": "Defines the modes offered by the zone (heating, cooling or both).",
@@ -113,11 +110,30 @@
           "max_sensor_age": "With no new sensor value for this long, the zone goes into 'sensor failure'.",
           "failsafe_power": "0 = the zone requests nothing if the sensor is missing.",
           "boiler_fraction_entity": "Boiler power = heating power × fraction. Empty = 100 %.",
-          "season_entity": "Auto mode: when on (summer) the zone cools, otherwise it heats. Empty = the sense follows the temperature (below the heating setpoint: heat; above the cooling setpoint: cool; in between: dead band).",
-          "valve_entities": "number entities of the valves (opening in %). Nothing is sent when cooling or in summer, nor if the valve already has the right value.",
-          "valve_mode": "By demand: open when the zone calls for boiler heat, closed otherwise (recommended). Fraction: opening = boiler fraction. Custom: opening = value of the entity below.",
-          "valve_open_level": "'By demand' mode: opening applied when the zone calls for boiler heat (100 % recommended).",
-          "valve_custom_entity": "'Custom' mode: 0-100 numeric entity computed elsewhere (template sensor, input_number…)."
+          "season_entity": "Auto mode: when on (summer) the zone cools, otherwise it heats. Empty = the sense follows the temperature (below the heating setpoint: heat; above the cooling setpoint: cool; in between: dead band)."
+        }
+      },
+      "valves": {
+        "title": "Thermostatic valves",
+        "data": {
+          "valve_entities": "Valves (opening number entities)",
+          "valve_mode": "Valve control",
+          "valve_follow": "Demand followed (proportional mode)",
+          "valve_open_min": "Opening at 1 % demand",
+          "valve_open_max": "Opening at 100 % demand",
+          "valve_min_step": "Minimum difference before changing the opening",
+          "valve_keep_open": "Keep open while no other zone calls for heat",
+          "valve_custom_entity": "Opening entity (custom mode)"
+        },
+        "data_description": {
+          "valve_entities": "Opening number entities (e.g. …_valve_setpoint). Nothing is sent when cooling or in summer.",
+          "valve_mode": "Proportional: the opening follows the zone's demand within the range below (recommended). Fraction: opening = boiler fraction. Custom: opening = entity below.",
+          "valve_follow": "The zone's boiler power (recommended: the share of heat the radiators provide) or total heating power.",
+          "valve_open_min": "Opening at minimum demand (1 %). E.g. 15 %.",
+          "valve_open_max": "Opening at 100 % demand. E.g. 70 %. In between the opening varies linearly.",
+          "valve_min_step": "The valve is only changed when the wanted opening differs from the current one by at least this percentage (full closing is always applied).",
+          "valve_keep_open": "When demand drops to 0 the valve stays as is unless another zone calls for boiler heat, then it closes. Off: closes immediately.",
+          "valve_custom_entity": "Custom mode: 0-100 numeric entity computed elsewhere (template sensor, input_number…)."
         }
       },
       "regulation": {
@@ -263,6 +279,9 @@
       "current_temperature": {
         "name": "Current temperature"
       },
+      "valve_target": {
+        "name": "Valve opening"
+      },
       "zone_status": {
         "name": "Status",
         "state": {
@@ -378,9 +397,15 @@
     },
     "valve_mode": {
       "options": {
-        "demand": "By heating demand (open / closed)",
+        "proportional": "Proportional to demand (recommended)",
         "fraction": "Follow the boiler fraction",
         "custom": "Custom entity"
+      }
+    },
+    "valve_follow": {
+      "options": {
+        "boiler": "The zone's boiler power",
+        "total": "Total heating power"
       }
     }
   }

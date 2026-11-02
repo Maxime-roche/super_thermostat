@@ -24,10 +24,12 @@ from .const import (
     CONF_CYCLE, CONF_DIR_DELTA_COOL, CONF_DIR_DELTA_HEAT, CONF_FAIL_OFFSET_COOL,
     CONF_FAIL_OFFSET_HEAT, CONF_FAILSAFE_POWER, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES,
     CONF_MAX_SENSOR_AGE, CONF_MIN_POWER, CONF_OFFSET_NEXT_FULL, CONF_OUTDOOR_ENTITY,
-    CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_LEVEL, CONF_VALVE_MODE, CONF_WINDOWS,
+    CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_FOLLOW, CONF_VALVE_KEEP_OPEN,
+    CONF_VALVE_LEVEL, CONF_VALVE_MIN_STEP, CONF_VALVE_MODE, CONF_VALVE_OPEN_MAX,
+    CONF_VALVE_OPEN_MIN, CONF_WINDOWS,
     CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY, CONF_ZONE_SEASON,
     DEFAULT_TARGET_COOL, DEFAULT_TARGET_HEAT, DEFAULT_ZONE_OPTIONS, DOMAIN, FIXED_PRESETS,
-    PRESET_ALIASES, PRESET_DEFAULTS, STORAGE_VERSION, VALVE_CUSTOM, VALVE_DEMAND, VALVE_FRACTION, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
+    PRESET_ALIASES, PRESET_DEFAULTS, STORAGE_VERSION, FOLLOW_TOTAL, VALVE_CUSTOM, VALVE_DEMAND, VALVE_FRACTION, VALVE_PROPORTIONAL, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
     Z_OFF, Z_SENSOR_FAILURE, Z_SUSPENDED,
 )
 from .engine import (
@@ -79,6 +81,7 @@ class ZoneController:
         self.power_cool: int = 0
         self.suspended = False
         self.sensor_failure = False
+        self.valve_target: int | None = None
 
         self._store: Store = Store(hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}")
         self._listeners: list[Callable[[], None]] = []
@@ -229,7 +232,7 @@ class ZoneController:
 
     @callback
     def _on_fraction_event(self, _event: Event) -> None:
-        self._drive_valves()
+        self._refresh_valves()
         self._notify()
 
     @callback
@@ -266,47 +269,92 @@ class ZoneController:
 
     def _apply(self, status: str, heat: int = 0, cool: int = 0) -> None:
         self.status, self.power_heat, self.power_cool = status, heat, cool
-        self._drive_valves()
+        self._refresh_valves()
         self._save()
         self._notify()
 
-    def _valve_target(self) -> int | None:
-        """Ouverture voulue (0-100) ou None = ne rien envoyer."""
-        mode = self.cfg.get(CONF_VALVE_MODE, VALVE_FRACTION)
-        if mode == VALVE_DEMAND:
-            # fermé quand la zone ne demande rien (y compris à l'arrêt, panne ou fenêtre ouverte)
-            return int(self.cfg.get(CONF_VALVE_LEVEL, 100)) if self.power_boiler > 0 else 0
+    # ---- vannes thermostatiques ----
+    @property
+    def valve_mode(self) -> str:
+        """Mode choisi ; une ancienne configuration sans mode garde le suivi de la fraction."""
+        mode = self.entry.options.get(CONF_VALVE_MODE) or self.entry.data.get(CONF_VALVE_MODE)
+        if not mode:
+            return VALVE_FRACTION if self.cfg.get(CONF_VALVES) else VALVE_PROPORTIONAL
+        return mode
+
+    def _other_zones(self) -> list["ZoneController"]:
+        zones: list[ZoneController] = []
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            ctrl = getattr(entry, "runtime_data", None)
+            if entry.entry_id != self.entry.entry_id and isinstance(ctrl, ZoneController):
+                zones.append(ctrl)
+        return zones
+
+    def _other_zone_demand(self) -> bool:
+        return any(zone.power_boiler > 0 for zone in self._other_zones())
+
+    def _valve_demand(self) -> int:
+        """Demande suivie par les vannes : puissance chaudière de la zone (ou chauffe totale)."""
         if self.hvac_mode == "off":
-            return None
+            return 0
+        follow = self.cfg.get(CONF_VALVE_FOLLOW)
+        return self.power_heat if follow == FOLLOW_TOTAL else self.power_boiler
+
+    def _valve_target(self) -> int | None:
+        """Ouverture voulue (0-100) ; None = ne rien envoyer (on garde l'ouverture actuelle)."""
+        mode = self.valve_mode
         if mode == VALVE_CUSTOM:
+            if self.hvac_mode == "off":
+                return None
             value = read_number(self.hass, self.cfg.get(CONF_VALVE_CUSTOM))
             return None if value is None else int(round(max(0.0, min(100.0, value))))
-        return int(round(self.fraction))  # VALVE_FRACTION
+        if mode == VALVE_FRACTION:
+            return None if self.hvac_mode == "off" else int(round(self.fraction))
+        # proportionnel (l'ancien mode « demande » = même ouverture au min et au max)
+        if mode == VALVE_DEMAND:
+            low = high = float(self.cfg.get(CONF_VALVE_LEVEL, 100))
+        else:
+            low = float(self.cfg.get(CONF_VALVE_OPEN_MIN, 15))
+            high = float(self.cfg.get(CONF_VALVE_OPEN_MAX, 70))
+        demand = self._valve_demand()
+        if demand > 0:
+            return int(round(low + (high - low) * (min(demand, 100) - 1) / 99))
+        # plus de demande : on ne ferme que si une autre zone demande (sinon la chaudière est à l'arrêt)
+        if self.cfg.get(CONF_VALVE_KEEP_OPEN, True) and not self._other_zone_demand():
+            return None
+        return 0
+
+    @callback
+    def _refresh_valves(self) -> None:
+        """Recalcule les vannes de cette zone et des autres (leur décision dépend de la nôtre)."""
+        self._drive_valves()
+        for zone in self._other_zones():
+            zone._drive_valves()
 
     @callback
     def _drive_valves(self) -> None:
-        """Vannes thermostatiques : trois façons de les piloter, en hiver seulement.
+        """Pilote les vannes, en hiver seulement.
 
-        * « demande » : ouvertes (niveau réglable) si la zone demande de la chaudière, fermées sinon ;
-        * « fraction » : ouverture = fraction chaudière ;
-        * « personnalisé » : ouverture = valeur d'une entité choisie (calculée ailleurs).
-        Rien n'est envoyé en froid ni en été, ni si la vanne est déjà à la bonne valeur
-        (les vannes sur pile n'aiment pas les écritures inutiles).
+        Rien n'est envoyé en froid ni en été, ni si l'écart avec l'ouverture actuelle est inférieur
+        à l'écart minimal (sauf pour fermer complètement) : les vannes sur pile n'aiment pas les
+        écritures inutiles.
         """
         valves = self.cfg.get(CONF_VALVES) or []
-        if not valves or self.hvac_mode == "cool" or self.sense == COOL:
-            return
-        if self._summer() is True:
+        if not valves or self.hvac_mode == "cool" or self.sense == COOL or self._summer() is True:
+            self.valve_target = None
             return
         value = self._valve_target()
+        self.valve_target = value
         if value is None:
             return
+        step = float(self.cfg.get(CONF_VALVE_MIN_STEP, 5))
         for entity in valves:
             state = self.hass.states.get(entity)
             if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
                 continue
             try:
-                if round(float(state.state)) == value:
+                diff = abs(round(float(state.state)) - value)
+                if diff == 0 or (diff < step and value != 0):
                     continue
             except ValueError:
                 pass

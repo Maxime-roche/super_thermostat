@@ -80,6 +80,7 @@
         "title": "Options",
         "menu_options": {
           "zone_sensors": "Sondes, type et cycle",
+          "valves": "Vannes thermostatiques",
           "regulation": "Régulation",
           "windows": "Ouvrants",
           "boiler_sensors": "Relais, sondes et sources",
@@ -101,11 +102,7 @@
           "max_sensor_age": "Âge max de la sonde avant défaillance",
           "failsafe_power": "Puissance en cas de défaillance sonde",
           "boiler_fraction_entity": "Fraction chaudière (0-100 %)",
-          "season_entity": "Entité « saison » (été = froid)",
-          "valve_entities": "Vannes thermostatiques",
-          "valve_mode": "Pilotage des vannes",
-          "valve_open_level": "Ouverture quand la zone demande",
-          "valve_custom_entity": "Entité d'ouverture personnalisée"
+          "season_entity": "Entité « saison » (été = froid)"
         },
         "data_description": {
           "allowed_modes": "Définit les modes proposés par la zone (chauffage, climatisation ou les deux).",
@@ -113,11 +110,30 @@
           "max_sensor_age": "Sans nouvelle valeur de la sonde pendant ce délai, la zone passe en « défaillance sonde ».",
           "failsafe_power": "0 = la zone ne demande rien si la sonde est absente.",
           "boiler_fraction_entity": "Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %.",
-          "season_entity": "Mode Auto : si activée (été) la zone refroidit, sinon elle chauffe. Vide = le sens suit la température (sous la consigne de chauffe : chauffe ; au-dessus de la consigne de froid : froid ; entre les deux : zone morte).",
-          "valve_entities": "Entités number des vannes (ouverture en %). Rien n'est envoyé en froid ni en été, ni si la vanne est déjà à la bonne valeur.",
-          "valve_mode": "Selon la demande : ouvertes si la zone demande de la chaudière, fermées sinon (recommandé). Fraction : ouverture = fraction chaudière. Personnalisé : ouverture = valeur de l'entité ci-dessous.",
-          "valve_open_level": "Mode « selon la demande » : ouverture appliquée quand la zone demande de la chaudière (100 % conseillé).",
-          "valve_custom_entity": "Mode « personnalisé » : entité numérique 0-100 calculée ailleurs (capteur template, input_number…)."
+          "season_entity": "Mode Auto : si activée (été) la zone refroidit, sinon elle chauffe. Vide = le sens suit la température (sous la consigne de chauffe : chauffe ; au-dessus de la consigne de froid : froid ; entre les deux : zone morte)."
+        }
+      },
+      "valves": {
+        "title": "Vannes thermostatiques",
+        "data": {
+          "valve_entities": "Vannes (entités number d'ouverture)",
+          "valve_mode": "Pilotage des vannes",
+          "valve_follow": "Demande suivie (mode proportionnel)",
+          "valve_open_min": "Ouverture à 1 % de demande",
+          "valve_open_max": "Ouverture à 100 % de demande",
+          "valve_min_step": "Écart minimal avant de changer l'ouverture",
+          "valve_keep_open": "Garder ouvert tant qu'aucune autre zone ne demande",
+          "valve_custom_entity": "Entité d'ouverture (mode personnalisé)"
+        },
+        "data_description": {
+          "valve_entities": "Entités number d'ouverture (ex. …_valve_setpoint). Rien n'est envoyé en froid ni en été.",
+          "valve_mode": "Proportionnel : l'ouverture suit la demande de la zone dans la plage ci-dessous (recommandé). Fraction : ouverture = fraction chaudière. Personnalisé : ouverture = entité ci-dessous.",
+          "valve_follow": "Puissance chaudière de la zone (recommandé : la part de chaleur que fournissent les radiateurs) ou puissance de chauffe totale.",
+          "valve_open_min": "Ouverture quand la demande est minimale (1 %). Ex. 15 %.",
+          "valve_open_max": "Ouverture quand la demande est de 100 %. Ex. 70 %. Entre les deux, l'ouverture varie linéairement.",
+          "valve_min_step": "La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (la fermeture complète est toujours appliquée).",
+          "valve_keep_open": "Quand la demande tombe à 0, la vanne reste telle quelle sauf si une autre zone demande de la chaudière : elle se ferme alors. Désactivé : fermeture immédiate.",
+          "valve_custom_entity": "Mode personnalisé : entité numérique 0-100 calculée ailleurs (capteur template, input_number…)."
         }
       },
       "regulation": {
@@ -263,6 +279,9 @@
       "current_temperature": {
         "name": "Température actuelle"
       },
+      "valve_target": {
+        "name": "Ouverture des vannes"
+      },
       "zone_status": {
         "name": "Statut",
         "state": {
@@ -378,9 +397,15 @@
     },
     "valve_mode": {
       "options": {
-        "demand": "Selon la demande de chauffe (ouvert / fermé)",
+        "proportional": "Proportionnel à la demande (recommandé)",
         "fraction": "Suivre la fraction chaudière",
         "custom": "Entité personnalisée"
+      }
+    },
+    "valve_follow": {
+      "options": {
+        "boiler": "Puissance chaudière de la zone",
+        "total": "Puissance de chauffe totale"
       }
     }
   }

@@ -11,7 +11,8 @@ from homeassistant.helpers import selector as sel
 
 from .const import (
     ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, CONF_AC_FRACTION, CONF_AC_MIN_ON, CONF_COOL_SOURCES,
-    CONF_MIN_FRACTION, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_LEVEL, CONF_VALVE_MODE, CONF_ZONE_SEASON,
+    CONF_MIN_FRACTION, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_FOLLOW, CONF_VALVE_KEEP_OPEN, CONF_VALVE_MIN_STEP,
+    CONF_VALVE_MODE, CONF_VALVE_OPEN_MAX, CONF_VALVE_OPEN_MIN, CONF_ZONE_SEASON,
     CONF_ADJUST_INTERVAL, CONF_ALLOWED, CONF_AUTOLEARN, CONF_BURNER,
     CONF_CIRCULATOR, CONF_CLIMATE, CONF_CYCLE, 
     CONF_FAIL_OFFSET_COOL, CONF_FAIL_OFFSET_HEAT, CONF_FAILSAFE_POWER, CONF_FALLBACK_TEMP,
@@ -70,18 +71,6 @@ ZONE_SENSORS = vol.Schema(
         vol.Required(CONF_TEMP_ENTITY): _temp_sensor(),
         vol.Optional(CONF_OUTDOOR_ENTITY): _temp_sensor(),
         vol.Optional(CONF_FRACTION_ENTITY): _numeric_entity(),
-        vol.Optional(CONF_VALVES): sel.EntitySelector(
-            sel.EntitySelectorConfig(domain=["number", "input_number"], multiple=True)
-        ),
-        vol.Required(CONF_VALVE_MODE): sel.SelectSelector(
-            sel.SelectSelectorConfig(
-                options=["demand", "fraction", "custom"],
-                translation_key="valve_mode",
-                mode=sel.SelectSelectorMode.DROPDOWN,
-            )
-        ),
-        vol.Required(CONF_VALVE_LEVEL): _num(10, 100, 5, "%"),
-        vol.Optional(CONF_VALVE_CUSTOM): _numeric_entity(),
         vol.Optional(CONF_ZONE_SEASON): sel.EntitySelector(
             sel.EntitySelectorConfig(domain=["input_boolean", "switch", "binary_sensor"])
         ),
@@ -89,6 +78,32 @@ ZONE_SENSORS = vol.Schema(
         vol.Required(CONF_CYCLE): _num(5, 240, 1, "min"),
         vol.Required(CONF_MAX_SENSOR_AGE): _num(5, 1440, 1, "min"),
         vol.Required(CONF_FAILSAFE_POWER): _num(0, 100, 1, "%"),
+    }
+)
+ZONE_VALVES = vol.Schema(
+    {
+        vol.Optional(CONF_VALVES): sel.EntitySelector(
+            sel.EntitySelectorConfig(domain=["number", "input_number"], multiple=True)
+        ),
+        vol.Required(CONF_VALVE_MODE): sel.SelectSelector(
+            sel.SelectSelectorConfig(
+                options=["proportional", "fraction", "custom"],
+                translation_key="valve_mode",
+                mode=sel.SelectSelectorMode.DROPDOWN,
+            )
+        ),
+        vol.Required(CONF_VALVE_FOLLOW): sel.SelectSelector(
+            sel.SelectSelectorConfig(
+                options=["boiler", "total"],
+                translation_key="valve_follow",
+                mode=sel.SelectSelectorMode.DROPDOWN,
+            )
+        ),
+        vol.Required(CONF_VALVE_OPEN_MIN): _num(0, 100, 1, "%"),
+        vol.Required(CONF_VALVE_OPEN_MAX): _num(0, 100, 1, "%"),
+        vol.Required(CONF_VALVE_MIN_STEP): _num(0, 50, 1, "%"),
+        vol.Required(CONF_VALVE_KEEP_OPEN): sel.BooleanSelector(),
+        vol.Optional(CONF_VALVE_CUSTOM): _numeric_entity(),
     }
 )
 ZONE_REGULATION = vol.Schema(
@@ -250,7 +265,11 @@ class SuperThermostatOptionsFlow(OptionsFlow):
             TYPE_FRACTION: DEFAULT_FRACTION_OPTIONS,
             TYPE_AC: DEFAULT_AC_OPTIONS,
         }[self.config_entry.data[CONF_TYPE]]
-        return {**defaults, **self.config_entry.data, **(self._opts or {})}
+        merged = {**defaults, **self.config_entry.data, **(self._opts or {})}
+        if self.config_entry.data[CONF_TYPE] == TYPE_ZONE and not merged.get(CONF_VALVE_MODE):
+            # anciennes configurations : les vannes suivaient la fraction chaudière
+            merged[CONF_VALVE_MODE] = "fraction" if merged.get(CONF_VALVES) else "proportional"
+        return merged
 
     async def _form(self, step_id: str, schema: vol.Schema, user_input) -> ConfigFlowResult:
         if user_input is None:
@@ -272,7 +291,7 @@ class SuperThermostatOptionsFlow(OptionsFlow):
             self._opts = dict(self.config_entry.options)
         kind = self.config_entry.data[CONF_TYPE]
         if kind == TYPE_ZONE:
-            menu = ["zone_sensors", "regulation", "windows", "save"]
+            menu = ["zone_sensors", "valves", "regulation", "windows", "save"]
         elif kind == TYPE_BOILER:
             menu = ["boiler_sensors", "tuning", "save"]
         elif kind == TYPE_AC:
@@ -283,6 +302,9 @@ class SuperThermostatOptionsFlow(OptionsFlow):
 
     async def async_step_zone_sensors(self, user_input=None) -> ConfigFlowResult:
         return await self._form("zone_sensors", ZONE_SENSORS, user_input)
+
+    async def async_step_valves(self, user_input=None) -> ConfigFlowResult:
+        return await self._form("valves", ZONE_VALVES, user_input)
 
     async def async_step_regulation(self, user_input=None) -> ConfigFlowResult:
         return await self._form("regulation", ZONE_REGULATION, user_input)

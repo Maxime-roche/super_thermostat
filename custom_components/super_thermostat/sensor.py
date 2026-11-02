@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
-    AC_STATUSES, BOILER_STATUSES, CONF_TYPE, TYPE_AC, TYPE_BOILER, TYPE_ZONE, ZONE_STATUSES,
+    AC_STATUSES, BOILER_STATUSES, CONF_TYPE, CONF_VALVES, TYPE_AC, TYPE_BOILER, TYPE_ZONE, ZONE_STATUSES,
 )
 from .entity import ControllerEntity
 
@@ -58,6 +58,21 @@ async def async_setup_entry(
             )
         if c.has_cool:
             entities.append(ControllerSensor(c, "power_cool", lambda: c.power_cool, unit=PERCENTAGE))
+        if c.cfg.get(CONF_VALVES):
+            entities.append(
+                ControllerSensor(
+                    c, "valve_target", lambda: c.valve_target, unit=PERCENTAGE,
+                    attrs_fn=lambda: {
+                        "mode": c.valve_mode,
+                        "demand": c._valve_demand(),
+                        "other_zone_demand": c._other_zone_demand(),
+                        "valves": {
+                            e: (c.hass.states.get(e).state if c.hass.states.get(e) else None)
+                            for e in c.cfg[CONF_VALVES]
+                        },
+                    },
+                )
+            )
         entities.append(
             ControllerSensor(
                 c, "zone_status", lambda: c.status,

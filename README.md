@@ -135,6 +135,7 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 | Puissance de froid | Pourcentage demandé en froid (zones avec froid). |
 | Statut | `heating`, `cooling`, `idle`, `off`, `suspended` (fenêtre), `sensor_failure`, `actuator_failure`. |
 | Défaillance | Binaire, ON si panne de sonde ou de chauffage. |
+| Vanne qui ne suit pas | Binaire (si les positions réelles des vannes sont renseignées), ON si une vanne reste à plus de 10 % de sa consigne pendant le délai réglé. |
 | `number` (configuration) | Coefficients appris, offsets, delta consigne, consignes des préréglages. |
 | Bouton « Réinitialiser l'apprentissage » | Repart des coefficients par défaut. |
 
@@ -154,21 +155,27 @@ Dans **Configurer → Vannes thermostatiques**, une zone peut piloter les vannes
 | Champ | Rôle |
 |---|---|
 | Vannes | Les entités d'ouverture à piloter (plusieurs radiateurs d'une même pièce se pilotent ensemble). |
-| Pilotage des vannes | **Proportionnel à la demande** (recommandé), **Suivre la fraction chaudière** ou **Entité personnalisée**. |
-| Demande suivie | Mode proportionnel : la **puissance chaudière** de la zone (recommandé : c'est la part de chaleur que fournissent les radiateurs) ou la puissance de chauffe totale. |
+| Position réelle des vannes | Facultatif : un capteur par vanne (par exemple `…_valve_position`), **dans le même ordre que les vannes**. Sert à comparer la position réelle à la consigne envoyée. |
+| Alerte « vanne qui ne suit pas » après | Durée en minutes (30 par défaut, 0 = pas d'alerte). L'écart déclenchant est fixe : plus de **10 %** entre la consigne et la position réelle. |
+| Demande suivie | **Champ libre** : n'importe quelle entité 0-100 % dont la valeur pilote l'ouverture (« Puissance chaudière » ou « Puissance de chauffe » de la zone, une fraction chaudière, une entité à toi…). **Vide = la puissance chaudière de la zone** (recommandé : c'est la part de chaleur que fournissent les radiateurs). |
 | Ouverture à 1 % de demande | Par exemple 15 %. |
 | Ouverture à 100 % de demande | Par exemple 70 %. Entre les deux, l'ouverture varie linéairement. |
 | Écart minimal avant de changer l'ouverture | La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (5 % par défaut). La fermeture complète est toujours appliquée. |
+| Ne jamais fermer complètement | Quand la demande est à 0, la vanne passe à l'ouverture minimale (la valeur « à 1 % ») au lieu de se fermer. Prioritaire sur « Garder ouvert ». |
 | Garder ouvert tant qu'aucune autre zone ne demande | Voir ci-dessous (activé par défaut). |
-| Entité d'ouverture | Mode personnalisé : une entité 0-100 calculée ailleurs (template, `input_number`…). |
 
-**Mode proportionnel.** Avec 15 % à 1 % et 70 % à 100 % : une demande de 1 % ouvre à 15 %, 50 % à environ 43 %, 100 % à 70 %. Une plage réduite évite les vannes très ouvertes, qui font chauffer les radiateurs au détriment des autres pièces, et très fermées, qui laissent passer trop peu de débit. Mettre la même valeur aux deux extrémités donne un fonctionnement ouvert / fermé.
+**Plage d'ouverture.** La valeur de la demande est ramenée à la plage réglée : avec 15 % à 1 % et 70 % à 100 %, une demande de 1 % ouvre à 15 %, 50 % à environ 43 %, 100 % à 70 %. Mettre 0 et 100 aux deux extrémités fait suivre la valeur de l'entité telle quelle ; la même valeur aux deux extrémités donne un fonctionnement ouvert / fermé. Si l'entité choisie est indisponible, rien n'est envoyé.
 
-**Quand la demande tombe à 0.** Avec « Garder ouvert » (par défaut), la vanne reste à son ouverture actuelle tant qu'aucune autre zone ne demande de chaudière, car circulateur et brûleur sont alors à l'arrêt et fermer la vanne pour la rouvrir plus tard ne sert à rien. Dès qu'une autre zone demande de la chaudière, la vanne se ferme (pour ne pas chauffer une pièce qui n'en a pas besoin). Sans cette option, elle se ferme tout de suite.
+**Quand la demande tombe à 0**, dans cet ordre de priorité :
+1. *Ne jamais fermer complètement* activé : la vanne passe à l'ouverture minimale.
+2. Sinon, avec *Garder ouvert* (par défaut) : la vanne reste à son ouverture actuelle tant qu'aucune autre zone ne demande de chaudière, car circulateur et brûleur sont alors à l'arrêt et fermer pour rouvrir plus tard ne sert à rien. Dès qu'une autre zone demande de la chaudière, la vanne se ferme.
+3. Sinon : fermeture immédiate.
 
-**Autres modes.** *Suivre la fraction chaudière* : ouverture = fraction. *Entité personnalisée* : ouverture = valeur de l'entité choisie.
+Dans tous les cas : rien n'est envoyé en froid, en été (entité « saison » ON), ni quand l'écart avec l'ouverture actuelle est inférieur à l'écart minimal, ce qui épargne les piles. Les vannes sont recalculées à chaque cycle de la zone, à chaque changement de demande d'une zone et à chaque changement de l'entité suivie. Le capteur **Ouverture des vannes** de la zone affiche l'ouverture voulue, avec en attributs la source, la demande des autres zones, l'état des vannes et, si les positions réelles sont renseignées, la consigne, la position et l'écart de chaque vanne.
 
-Dans tous les modes : rien n'est envoyé en froid, en été (entité « saison » ON), ni quand l'écart avec l'ouverture actuelle est inférieur à l'écart minimal, ce qui épargne les piles. Les vannes sont recalculées à chaque cycle de la zone, à chaque changement de demande d'une zone et à chaque changement des entités suivies. Le capteur **Ouverture des vannes** de la zone affiche l'ouverture voulue, avec en attributs le mode, la demande suivie, la demande des autres zones et l'état des vannes.
+**Suivi de la position réelle.** Si tu renseignes les positions réelles, l'intégration compare pour chaque vanne la position à la consigne envoyée. Quand l'écart dépasse 10 % pendant plus que le délai réglé, l'indicateur **Vanne qui ne suit pas** de la zone s'active (attribut `valves_in_alert` : les vannes concernées, avec position, consigne et écart) et un avertissement est écrit dans les journaux. Le délai repart de zéro à chaque nouvel ordre, et rien n'est évalué en froid, en été, ni quand la position est indisponible. L'indicateur est séparé de « Défaillance » (régulation) : branche une automatisation dessus pour être notifié (pile faible, vanne bloquée…). La position réelle n'est qu'un témoin : l'intégration continue de comparer l'ouverture voulue à la consigne de la vanne, pour ne pas renvoyer un ordre qu'une vanne ne peut pas suivre.
+
+> Les zones configurées avant la version 0.8 gardent leur ancien fonctionnement (proportionnel, fraction ou entité personnalisée) jusqu'à ce que l'onglet *Vannes thermostatiques* soit enregistré.
 
 > Conseils : pour une vanne sans pièce dédiée, rattache-la à la zone voisine ou crée une zone avec la température de la vanne comme sonde (les sondes intégrées aux vannes mesurent souvent trop chaud près du radiateur). Si la pompe est à vitesse fixe, garder un by-pass hydraulique quand presque toutes les vannes sont fermées.
 
@@ -376,6 +383,8 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
+| 0.9.0 | Vannes : position réelle (capteur par vanne), affichage consigne / position / écart, indicateur « Vanne qui ne suit pas » (écart fixe de 10 %, délai réglable). |
+| 0.8.0 | Vannes : un champ libre « demande suivie » remplace les listes « pilotage » et « demande suivie », interrupteur « ne jamais fermer complètement » (ouverture minimale). |
 | 0.7.1 | Explications ajoutées sous les champs qui n'en avaient pas. |
 | 0.7.0 | Onglet « Vannes thermostatiques » dans les options des zones ; ouverture proportionnelle à la demande (plage réglable), écart minimal, vannes gardées ouvertes tant qu'aucune autre zone ne demande ; capteur « Ouverture des vannes ». |
 | 0.6.0 | Fraction chaudière : fractions « température actuelle » et « moyenne de la veille » (plus de mode à choisir) et leurs deux températures ; vannes : trois modes (demande, fraction, personnalisé) ; préréglages fixes (Vacances retiré) ; lien du bouton « ? » vers le dépôt. |

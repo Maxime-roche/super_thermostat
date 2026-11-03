@@ -127,24 +127,26 @@
       "valves": {
         "title": "Vannes thermostatiques",
         "data": {
-          "valve_entities": "Vannes (entités number d'ouverture)",
-          "valve_mode": "Pilotage des vannes",
-          "valve_follow": "Demande suivie (mode proportionnel)",
+          "valve_entities": "Vannes (entités d'ouverture)",
+          "valve_position_entities": "Position réelle des vannes (même ordre que les vannes)",
+          "valve_alert_minutes": "Alerte « vanne qui ne suit pas » après",
+          "valve_source": "Demande suivie (entité 0-100 %)",
           "valve_open_min": "Ouverture à 1 % de demande",
           "valve_open_max": "Ouverture à 100 % de demande",
           "valve_min_step": "Écart minimal avant de changer l'ouverture",
-          "valve_keep_open": "Garder ouvert tant qu'aucune autre zone ne demande",
-          "valve_custom_entity": "Entité d'ouverture (mode personnalisé)"
+          "valve_never_close": "Ne jamais fermer complètement (rester à l'ouverture minimale)",
+          "valve_keep_open": "Garder ouvert tant qu'aucune autre zone ne demande"
         },
         "data_description": {
           "valve_entities": "Entités number d'ouverture (ex. …_valve_setpoint). Rien n'est envoyé en froid ni en été.",
-          "valve_mode": "Proportionnel : l'ouverture suit la demande de la zone dans la plage ci-dessous (recommandé). Fraction : ouverture = fraction chaudière. Personnalisé : ouverture = entité ci-dessous.",
-          "valve_follow": "Puissance chaudière de la zone (recommandé : la part de chaleur que fournissent les radiateurs) ou puissance de chauffe totale.",
-          "valve_open_min": "Ouverture quand la demande est minimale (1 %). Ex. 15 %.",
+          "valve_position_entities": "Facultatif : un capteur par vanne (ex. …_valve_position), dans le même ordre que les vannes ci-dessus. Sert à comparer la position réelle à la consigne envoyée.",
+          "valve_alert_minutes": "Si la position réelle s'écarte de plus de 10 % de la consigne pendant cette durée, l'indicateur « Vanne qui ne suit pas » s'active. 0 = pas d'alerte. Le délai repart de zéro à chaque nouvel ordre.",
+          "valve_source": "Entité dont la valeur (0-100 %) pilote l'ouverture : « Puissance chaudière » ou « Puissance de chauffe » de la zone, la fraction chaudière, ou toute entité de ton choix. Vide = puissance chaudière de la zone.",
+          "valve_open_min": "Ouverture quand la demande est minimale (1 %). Ex. 15 %. Avec « ne jamais fermer », c'est aussi l'ouverture à demande 0.",
           "valve_open_max": "Ouverture quand la demande est de 100 %. Ex. 70 %. Entre les deux, l'ouverture varie linéairement.",
           "valve_min_step": "La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (la fermeture complète est toujours appliquée).",
-          "valve_keep_open": "Quand la demande tombe à 0, la vanne reste telle quelle sauf si une autre zone demande de la chaudière : elle se ferme alors. Désactivé : fermeture immédiate.",
-          "valve_custom_entity": "Mode personnalisé : entité numérique 0-100 calculée ailleurs (capteur template, input_number…)."
+          "valve_never_close": "Quand la demande est à 0, la vanne passe à l'ouverture minimale au lieu de se fermer. Prioritaire sur « garder ouvert ».",
+          "valve_keep_open": "Quand la demande tombe à 0, la vanne reste telle quelle sauf si une autre zone demande de la chaudière : elle se ferme alors. Désactivé : fermeture immédiate."
         }
       },
       "regulation": {
@@ -341,6 +343,9 @@
       "problem": {
         "name": "Défaillance"
       },
+      "valve_problem": {
+        "name": "Vanne qui ne suit pas"
+      },
       "burner": {
         "name": "Brûleur"
       },
@@ -415,19 +420,6 @@
         "heat": "Chauffage (chaudière)",
         "cool": "Climatisation",
         "all": "Chauffage + froid (Auto, deux consignes)"
-      }
-    },
-    "valve_mode": {
-      "options": {
-        "proportional": "Proportionnel à la demande (recommandé)",
-        "fraction": "Suivre la fraction chaudière",
-        "custom": "Entité personnalisée"
-      }
-    },
-    "valve_follow": {
-      "options": {
-        "boiler": "Puissance chaudière de la zone",
-        "total": "Puissance de chauffe totale"
       }
     }
   }

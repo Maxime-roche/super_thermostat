@@ -11,8 +11,8 @@ from homeassistant.helpers import selector as sel
 
 from .const import (
     ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, CONF_AC_FRACTION, CONF_AC_MIN_ON, CONF_COOL_SOURCES,
-    CONF_MIN_FRACTION, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_FOLLOW, CONF_VALVE_KEEP_OPEN, CONF_VALVE_MIN_STEP,
-    CONF_VALVE_MODE, CONF_VALVE_OPEN_MAX, CONF_VALVE_OPEN_MIN, CONF_ZONE_SEASON,
+    CONF_MIN_FRACTION, CONF_VALVES, CONF_VALVE_ALERT_MINUTES, CONF_VALVE_KEEP_OPEN, CONF_VALVE_MIN_STEP, CONF_VALVE_POSITIONS,
+    CONF_VALVE_NEVER_CLOSE, CONF_VALVE_OPEN_MAX, CONF_VALVE_OPEN_MIN, CONF_VALVE_SOURCE, CONF_ZONE_SEASON,
     CONF_ADJUST_INTERVAL, CONF_ALLOWED, CONF_AUTOLEARN, CONF_BURNER,
     CONF_CIRCULATOR, CONF_CLIMATE, CONF_CYCLE, 
     CONF_FAIL_OFFSET_COOL, CONF_FAIL_OFFSET_HEAT, CONF_FAILSAFE_POWER, CONF_FALLBACK_TEMP,
@@ -85,25 +85,16 @@ ZONE_VALVES = vol.Schema(
         vol.Optional(CONF_VALVES): sel.EntitySelector(
             sel.EntitySelectorConfig(domain=["number", "input_number"], multiple=True)
         ),
-        vol.Required(CONF_VALVE_MODE): sel.SelectSelector(
-            sel.SelectSelectorConfig(
-                options=["proportional", "fraction", "custom"],
-                translation_key="valve_mode",
-                mode=sel.SelectSelectorMode.DROPDOWN,
-            )
+        vol.Optional(CONF_VALVE_POSITIONS): sel.EntitySelector(
+            sel.EntitySelectorConfig(domain=["sensor", "number", "input_number"], multiple=True)
         ),
-        vol.Required(CONF_VALVE_FOLLOW): sel.SelectSelector(
-            sel.SelectSelectorConfig(
-                options=["boiler", "total"],
-                translation_key="valve_follow",
-                mode=sel.SelectSelectorMode.DROPDOWN,
-            )
-        ),
+        vol.Required(CONF_VALVE_ALERT_MINUTES): _num(0, 720, 5, "min"),
+        vol.Optional(CONF_VALVE_SOURCE): _numeric_entity(),
         vol.Required(CONF_VALVE_OPEN_MIN): _num(0, 100, 1, "%"),
         vol.Required(CONF_VALVE_OPEN_MAX): _num(0, 100, 1, "%"),
         vol.Required(CONF_VALVE_MIN_STEP): _num(0, 50, 1, "%"),
+        vol.Required(CONF_VALVE_NEVER_CLOSE): sel.BooleanSelector(),
         vol.Required(CONF_VALVE_KEEP_OPEN): sel.BooleanSelector(),
-        vol.Optional(CONF_VALVE_CUSTOM): _numeric_entity(),
     }
 )
 ZONE_REGULATION = vol.Schema(
@@ -173,7 +164,7 @@ AC_TUNING = vol.Schema(
     }
 )
 CLEARABLE = {
-    CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_CUSTOM: "",
+    CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_SOURCE: "", CONF_VALVE_POSITIONS: [],
     CONF_AC_FRACTION: "", CONF_SUMMER: "", CONF_ZONE_SEASON: "", CONF_COOL_SOURCES: [],
 }
 
@@ -265,11 +256,7 @@ class SuperThermostatOptionsFlow(OptionsFlow):
             TYPE_FRACTION: DEFAULT_FRACTION_OPTIONS,
             TYPE_AC: DEFAULT_AC_OPTIONS,
         }[self.config_entry.data[CONF_TYPE]]
-        merged = {**defaults, **self.config_entry.data, **(self._opts or {})}
-        if self.config_entry.data[CONF_TYPE] == TYPE_ZONE and not merged.get(CONF_VALVE_MODE):
-            # anciennes configurations : les vannes suivaient la fraction chaudière
-            merged[CONF_VALVE_MODE] = "fraction" if merged.get(CONF_VALVES) else "proportional"
-        return merged
+        return {**defaults, **self.config_entry.data, **(self._opts or {})}
 
     async def _form(self, step_id: str, schema: vol.Schema, user_input) -> ConfigFlowResult:
         if user_input is None:

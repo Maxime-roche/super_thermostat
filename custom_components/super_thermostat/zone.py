@@ -10,12 +10,15 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
-from homeassistant.helpers.event import async_call_later, async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_call_later, async_track_state_change_event, async_track_time_interval,
+)
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 
@@ -25,11 +28,12 @@ from .const import (
     CONF_FAIL_OFFSET_HEAT, CONF_FAILSAFE_POWER, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES,
     CONF_MAX_SENSOR_AGE, CONF_MIN_POWER, CONF_OFFSET_NEXT_FULL, CONF_OUTDOOR_ENTITY,
     CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_FOLLOW, CONF_VALVE_KEEP_OPEN,
+    CONF_VALVE_ALERT_MINUTES, CONF_VALVE_NEVER_CLOSE, CONF_VALVE_POSITIONS, CONF_VALVE_SOURCE,
     CONF_VALVE_LEVEL, CONF_VALVE_MIN_STEP, CONF_VALVE_MODE, CONF_VALVE_OPEN_MAX,
     CONF_VALVE_OPEN_MIN, CONF_WINDOWS,
     CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY, CONF_ZONE_SEASON,
     DEFAULT_TARGET_COOL, DEFAULT_TARGET_HEAT, DEFAULT_ZONE_OPTIONS, DOMAIN, FIXED_PRESETS,
-    PRESET_ALIASES, PRESET_DEFAULTS, STORAGE_VERSION, FOLLOW_TOTAL, VALVE_CUSTOM, VALVE_DEMAND, VALVE_FRACTION, VALVE_PROPORTIONAL, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
+    PRESET_ALIASES, PRESET_DEFAULTS, STORAGE_VERSION, FOLLOW_TOTAL, VALVE_ALERT_GAP, VALVE_CUSTOM, VALVE_DEMAND, VALVE_FRACTION, VALVE_PROPORTIONAL, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
     Z_OFF, Z_SENSOR_FAILURE, Z_SUSPENDED,
 )
 from .engine import (
@@ -82,6 +86,9 @@ class ZoneController:
         self.suspended = False
         self.sensor_failure = False
         self.valve_target: int | None = None
+        self.valve_alert = False
+        self.valve_report: dict[str, dict[str, Any]] = {}
+        self._drift: dict[str, dict[str, Any]] = {}
 
         self._store: Store = Store(hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}")
         self._listeners: list[Callable[[], None]] = []
@@ -214,11 +221,27 @@ class ZoneController:
                     self.hass, [self.cfg[CONF_FRACTION_ENTITY]], self._on_fraction_event
                 )
             )
-        if self.cfg.get(CONF_VALVE_CUSTOM) and self.cfg.get(CONF_VALVE_MODE) == VALVE_CUSTOM:
+        if self.valve_new_style and self.cfg.get(CONF_VALVE_SOURCE):
+            self._unsubs.append(
+                async_track_state_change_event(
+                    self.hass, [self.cfg[CONF_VALVE_SOURCE]], self._on_fraction_event
+                )
+            )
+        if not self.valve_new_style and self.cfg.get(CONF_VALVE_CUSTOM) and self.cfg.get(CONF_VALVE_MODE) == VALVE_CUSTOM:
             self._unsubs.append(
                 async_track_state_change_event(
                     self.hass, [self.cfg[CONF_VALVE_CUSTOM]], self._on_fraction_event
                 )
+            )
+        pairs = self.valve_pairs
+        if pairs:
+            self._unsubs.append(
+                async_track_state_change_event(
+                    self.hass, [e for pair in pairs for e in pair], self._on_valve_event
+                )
+            )
+            self._unsubs.append(
+                async_track_time_interval(self.hass, self._check_valves, timedelta(minutes=1))
             )
         if self.cfg.get(CONF_ZONE_SEASON):
             self._unsubs.append(
@@ -240,7 +263,12 @@ class ZoneController:
         self._recalc_now()
 
     @callback
+    def _on_valve_event(self, _event: Event) -> None:
+        self._check_valves()
+
+    @callback
     def _started(self, _hass: HomeAssistant) -> None:
+        self._check_valves()
         self._evaluate_windows()
         self.hass.async_create_task(self.async_run_cycle())
 
@@ -300,8 +328,40 @@ class ZoneController:
         follow = self.cfg.get(CONF_VALVE_FOLLOW)
         return self.power_heat if follow == FOLLOW_TOTAL else self.power_boiler
 
+    @property
+    def valve_new_style(self) -> bool:
+        """Configuration enregistrée depuis l'onglet Vannes actuel (champ « demande suivie » libre)."""
+        return CONF_VALVE_SOURCE in self.entry.options or CONF_VALVE_SOURCE in self.entry.data
+
     def _valve_target(self) -> int | None:
-        """Ouverture voulue (0-100) ; None = ne rien envoyer (on garde l'ouverture actuelle)."""
+        """Ouverture voulue (0-100) ; None = ne rien envoyer (on garde l'ouverture actuelle).
+
+        La valeur (0-100 %) de l'entité choisie — par défaut la puissance chaudière de la zone —
+        est ramenée à la plage d'ouverture : 1 % -> ouverture min, 100 % -> ouverture max.
+        """
+        if not self.valve_new_style:
+            return self._valve_target_legacy()
+        low = float(self.cfg.get(CONF_VALVE_OPEN_MIN, 15))
+        high = float(self.cfg.get(CONF_VALVE_OPEN_MAX, 70))
+        if self.hvac_mode == "off":
+            demand: float | None = 0.0
+        else:
+            source = self.cfg.get(CONF_VALVE_SOURCE)
+            demand = read_number(self.hass, source) if source else float(self.power_boiler)
+        if demand is None:
+            return None  # source indisponible : on ne touche à rien
+        if demand > 0:
+            level = min(max(demand, 1.0), 100.0)
+            return int(round(low + (high - low) * (level - 1) / 99))
+        # demande à 0
+        if self.cfg.get(CONF_VALVE_NEVER_CLOSE, False):
+            return int(round(low))  # jamais fermée : ouverture minimale
+        if self.cfg.get(CONF_VALVE_KEEP_OPEN, True) and not self._other_zone_demand():
+            return None  # on garde l'ouverture actuelle
+        return 0
+
+    def _valve_target_legacy(self) -> int | None:
+        """Anciennes configurations (avant le champ libre) : mode proportionnel / fraction / personnalisé."""
         mode = self.valve_mode
         if mode == VALVE_CUSTOM:
             if self.hvac_mode == "off":
@@ -323,6 +383,61 @@ class ZoneController:
         if self.cfg.get(CONF_VALVE_KEEP_OPEN, True) and not self._other_zone_demand():
             return None
         return 0
+
+    # ---- suivi de la position réelle des vannes ----
+    @property
+    def valve_pairs(self) -> list[tuple[str, str]]:
+        """(vanne, position réelle) appariées dans l'ordre des deux listes."""
+        valves = list(self.cfg.get(CONF_VALVES) or [])
+        positions = list(self.cfg.get(CONF_VALVE_POSITIONS) or [])
+        return list(zip(valves, positions))
+
+    @callback
+    def _check_valves(self, _now: Any = None) -> None:
+        """Compare la consigne envoyée à chaque vanne et sa position réelle.
+
+        Une vanne « ne suit pas » quand l'écart dépasse 10 % pendant plus de X minutes (réglable,
+        0 = désactivé). Le délai repart de zéro à chaque nouvel ordre, et rien n'est évalué en
+        froid / en été (une vanne en mode été ne suit plus sa consigne).
+        """
+        pairs = self.valve_pairs
+        if not pairs:
+            return
+        now = time.time()
+        limit = float(self.cfg.get(CONF_VALVE_ALERT_MINUTES, 30)) * 60
+        skip = self.hvac_mode == "cool" or self.sense == COOL or self._summer() is True
+        report: dict[str, dict[str, Any]] = {}
+        for valve, position_entity in pairs:
+            setpoint = read_number(self.hass, valve)
+            position = read_number(self.hass, position_entity)
+            record = self._drift.setdefault(valve, {"since": None, "setpoint": None})
+            gap = None if setpoint is None or position is None else abs(position - setpoint)
+            drifting = not skip and gap is not None and gap > VALVE_ALERT_GAP
+            if not drifting:
+                record["since"] = None
+            elif record["since"] is None or record["setpoint"] != setpoint:
+                record["since"] = now  # nouvel ordre : on laisse le temps à la vanne
+            record["setpoint"] = setpoint
+            minutes = 0 if record["since"] is None else (now - record["since"]) / 60
+            report[valve] = {
+                "position_entity": position_entity,
+                "setpoint": setpoint,
+                "position": position,
+                "gap": None if gap is None else round(gap),
+                "drift_minutes": int(minutes),
+                "alert": bool(limit > 0 and record["since"] is not None and now - record["since"] >= limit),
+            }
+        alert = any(item["alert"] for item in report.values())
+        stable = lambda r: {k: {f: v for f, v in item.items() if f != "drift_minutes"} for k, item in r.items()}  # noqa: E731
+        changed = alert != self.valve_alert or stable(report) != stable(self.valve_report)
+        if alert and not self.valve_alert:
+            _LOGGER.warning(
+                "%s : vanne(s) qui ne suivent pas leur consigne : %s",
+                self.entry.title, [v for v, item in report.items() if item["alert"]],
+            )
+        self.valve_alert, self.valve_report = alert, report
+        if changed:
+            self._notify()
 
     @callback
     def _refresh_valves(self) -> None:

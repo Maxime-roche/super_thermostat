@@ -42,6 +42,11 @@ ALLOWED_HEAT = "heat"
 ALLOWED_COOL = "cool"
 ALLOWED_ALL = "all"
 
+CONF_VALVE_POSITIONS = "valve_position_entities"  # position réelle de chaque vanne (même ordre que les vannes)
+CONF_VALVE_ALERT_MINUTES = "valve_alert_minutes"    # 0 = alerte désactivée
+VALVE_ALERT_GAP = 10  # écart fixe (%) entre consigne et position réelle avant de compter une dérive
+CONF_VALVE_SOURCE = "valve_source"            # entité 0-100 % qui pilote l'ouverture (vide = puissance chaudière de la zone)
+CONF_VALVE_NEVER_CLOSE = "valve_never_close"  # ne jamais fermer complètement : minimum d'ouverture
 CONF_VALVE_FOLLOW = "valve_follow"
 CONF_VALVE_OPEN_MIN = "valve_open_min"
 CONF_VALVE_OPEN_MAX = "valve_open_max"
@@ -73,6 +78,8 @@ DEFAULT_ZONE_OPTIONS = {
     CONF_VALVE_OPEN_MAX: 70,
     CONF_VALVE_MIN_STEP: 5,
     CONF_VALVE_KEEP_OPEN: True,
+    CONF_VALVE_NEVER_CLOSE: False,
+    CONF_VALVE_ALERT_MINUTES: 30,
     CONF_WINDOW_STOP_DELAY: 2,
     CONF_WINDOW_RESTART_DELAY: 2,
 }

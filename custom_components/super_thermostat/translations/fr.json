@@ -20,6 +20,8 @@
           "cycle_minutes": "Durée du cycle"
         },
         "data_description": {
+          "temperature_entity": "Sonde de température de la pièce : sensor, input_number, number, météo ou climate.",
+          "outdoor_entity": "Facultatif. Sans elle, la zone ne tient pas compte de la météo.",
           "allowed_modes": "Définit les modes proposés par la zone (chauffage, climatisation ou les deux).",
           "cycle_minutes": "Période de recalcul du pourcentage. Sert aussi de fenêtre de mesure pour l'apprentissage."
         }
@@ -34,6 +36,9 @@
           "power_sources": "Sources de puissance (additionnées, plafonnées à 100 %)"
         },
         "data_description": {
+          "burner_entity": "Relais (switch) qui allume le brûleur.",
+          "circulator_entity": "Relais (switch) du circulateur, allumé dès qu'il y a une demande.",
+          "water_temperature_entity": "Sonde de température de l'eau de la chaudière.",
           "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez."
         }
       },
@@ -42,14 +47,17 @@
         "data": {
           "name": "Nom",
           "source_entity": "Entité de température (valeur actuelle et historique)",
-          "seuil_haut": "Seuil haut : 0 % de chaudière au-dessus",
           "fallback_temperature": "Température de repli",
           "min_fraction": "Fraction minimale d'utilisation de la chaudière",
+          "seuil_haut": "Seuil haut : 0 % de chaudière au-dessus",
           "seuil_bas": "Seuil bas : 100 % de chaudière en dessous"
         },
         "data_description": {
+          "source_entity": "Température lue en direct ; sa moyenne de la veille est calculée à partir de l'historique.",
           "fallback_temperature": "Utilisée pour une température introuvable (10 °C comme l'ancien template).",
-          "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais)."
+          "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais).",
+          "seuil_haut": "Au-dessus de cette température : 0 % de chaudière. Entre les deux seuils, la fraction varie linéairement.",
+          "seuil_bas": "En dessous de cette température : 100 % de chaudière."
         }
       },
       "ac": {
@@ -63,6 +71,7 @@
           "summer_entity": "Entité « saison été » (facultatif)"
         },
         "data_description": {
+          "climate_entity": "L'entité climate de la clim à piloter.",
           "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez.",
           "cool_sources": "Facultatif : puissances de froid des zones. Sans elles, la clim ne gère que la chauffe.",
           "fraction_entity": "La clim ne chauffe plus quand cette fraction atteint le seuil de coupure. Vide = pas de coupure.",
@@ -105,6 +114,8 @@
           "season_entity": "Entité « saison » (été = froid)"
         },
         "data_description": {
+          "temperature_entity": "Sonde de température de la pièce : sensor, input_number, number, météo ou climate.",
+          "outdoor_entity": "Facultatif. Sans elle, la zone ne tient pas compte de la météo.",
           "allowed_modes": "Définit les modes proposés par la zone (chauffage, climatisation ou les deux).",
           "cycle_minutes": "Période de recalcul du pourcentage. Sert aussi de fenêtre de mesure pour l'apprentissage.",
           "max_sensor_age": "Sans nouvelle valeur de la sonde pendant ce délai, la zone passe en « défaillance sonde ».",
@@ -179,6 +190,9 @@
           "power_sources": "Sources de puissance (additionnées, plafonnées à 100 %)"
         },
         "data_description": {
+          "burner_entity": "Relais (switch) qui allume le brûleur.",
+          "circulator_entity": "Relais (switch) du circulateur, allumé dès qu'il y a une demande.",
+          "water_temperature_entity": "Sonde de température de l'eau de la chaudière.",
           "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez."
         }
       },
@@ -192,7 +206,11 @@
           "water_max_age": "Âge max de la sonde d'eau"
         },
         "data_description": {
-          "post_run_minutes": "0 = le circulateur s'arrête dès que la demande tombe à 0."
+          "post_run_minutes": "0 = le circulateur s'arrête dès que la demande tombe à 0.",
+          "min_on_minutes": "Le brûleur reste allumé au moins cette durée (protège la chaudière). Pas appliquée en cas d'arrêt de sécurité ou de demande nulle.",
+          "min_off_minutes": "Le brûleur reste éteint au moins cette durée avant de se rallumer.",
+          "safety_max": "Au-delà de cette température d'eau, le brûleur est coupé.",
+          "water_max_age": "Sans nouvelle valeur de la sonde d'eau pendant ce délai, le brûleur est coupé (défaillance sonde d'eau)."
         }
       },
       "ac_entities": {
@@ -205,6 +223,7 @@
           "summer_entity": "Entité « saison été » (facultatif)"
         },
         "data_description": {
+          "climate_entity": "L'entité climate de la clim à piloter.",
           "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez.",
           "cool_sources": "Facultatif : puissances de froid des zones. Sans elles, la clim ne gère que la chauffe.",
           "fraction_entity": "La clim ne chauffe plus quand cette fraction atteint le seuil de coupure. Vide = pas de coupure.",
@@ -230,14 +249,17 @@
         "title": "Température de référence",
         "data": {
           "source_entity": "Entité de température (valeur actuelle et historique)",
-          "seuil_haut": "Seuil haut : 0 % de chaudière au-dessus",
           "fallback_temperature": "Température de repli",
           "min_fraction": "Fraction minimale d'utilisation de la chaudière",
+          "seuil_haut": "Seuil haut : 0 % de chaudière au-dessus",
           "seuil_bas": "Seuil bas : 100 % de chaudière en dessous"
         },
         "data_description": {
+          "source_entity": "Température lue en direct ; sa moyenne de la veille est calculée à partir de l'historique.",
           "fallback_temperature": "Utilisée pour une température introuvable (10 °C comme l'ancien template).",
-          "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais)."
+          "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais).",
+          "seuil_haut": "Au-dessus de cette température : 0 % de chaudière. Entre les deux seuils, la fraction varie linéairement.",
+          "seuil_bas": "En dessous de cette température : 100 % de chaudière."
         }
       }
     }

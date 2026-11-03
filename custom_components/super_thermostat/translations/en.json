@@ -20,6 +20,8 @@
           "cycle_minutes": "Cycle length"
         },
         "data_description": {
+          "temperature_entity": "Room temperature sensor: sensor, input_number, number, weather or climate.",
+          "outdoor_entity": "Optional. Without it the zone ignores the weather.",
           "allowed_modes": "Defines the modes offered by the zone (heating, cooling or both).",
           "cycle_minutes": "Recalculation period of the percentage. Also the measurement window for learning."
         }
@@ -34,6 +36,9 @@
           "power_sources": "Power sources (summed, capped at 100 %)"
         },
         "data_description": {
+          "burner_entity": "Relay (switch) that turns the burner on.",
+          "circulator_entity": "Circulator relay (switch), on as soon as there is demand.",
+          "water_temperature_entity": "Boiler water temperature sensor.",
           "power_sources": "sensor / number / input_number entities: a zone, or any other source you add."
         }
       },
@@ -42,14 +47,17 @@
         "data": {
           "name": "Name",
           "source_entity": "Temperature entity (current value and history)",
-          "seuil_haut": "High threshold: 0 % boiler above",
           "fallback_temperature": "Fallback temperature",
           "min_fraction": "Minimum fraction to use the boiler",
+          "seuil_haut": "High threshold: 0 % boiler above",
           "seuil_bas": "Low threshold: 100 % boiler below"
         },
         "data_description": {
+          "source_entity": "Temperature read live; yesterday's mean is computed from its history.",
           "fallback_temperature": "Used for a missing temperature (10 °C like the old template).",
-          "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over)."
+          "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over).",
+          "seuil_haut": "Above this temperature: 0 % boiler. Between the two thresholds the fraction varies linearly.",
+          "seuil_bas": "Below this temperature: 100 % boiler."
         }
       },
       "ac": {
@@ -63,6 +71,7 @@
           "summer_entity": "Summer season entity (optional)"
         },
         "data_description": {
+          "climate_entity": "The climate entity of the AC to control.",
           "power_sources": "sensor / number / input_number entities: a zone, or any other source you add.",
           "cool_sources": "Optional: cooling powers of the zones. Without them the AC only handles heating.",
           "fraction_entity": "The AC stops heating when this fraction reaches the cut-off. Empty = no cut-off.",
@@ -105,6 +114,8 @@
           "season_entity": "Season entity (on = summer = cooling)"
         },
         "data_description": {
+          "temperature_entity": "Room temperature sensor: sensor, input_number, number, weather or climate.",
+          "outdoor_entity": "Optional. Without it the zone ignores the weather.",
           "allowed_modes": "Defines the modes offered by the zone (heating, cooling or both).",
           "cycle_minutes": "Recalculation period of the percentage. Also the measurement window for learning.",
           "max_sensor_age": "With no new sensor value for this long, the zone goes into 'sensor failure'.",
@@ -179,6 +190,9 @@
           "power_sources": "Power sources (summed, capped at 100 %)"
         },
         "data_description": {
+          "burner_entity": "Relay (switch) that turns the burner on.",
+          "circulator_entity": "Circulator relay (switch), on as soon as there is demand.",
+          "water_temperature_entity": "Boiler water temperature sensor.",
           "power_sources": "sensor / number / input_number entities: a zone, or any other source you add."
         }
       },
@@ -192,7 +206,11 @@
           "water_max_age": "Max water sensor age"
         },
         "data_description": {
-          "post_run_minutes": "0 = circulator stops as soon as demand drops to 0."
+          "post_run_minutes": "0 = circulator stops as soon as demand drops to 0.",
+          "min_on_minutes": "The burner stays on at least this long (protects the boiler). Not applied on safety cut-off or zero demand.",
+          "min_off_minutes": "The burner stays off at least this long before restarting.",
+          "safety_max": "Above this water temperature the burner is cut.",
+          "water_max_age": "With no new water sensor value for this long the burner is cut (water sensor failure)."
         }
       },
       "ac_entities": {
@@ -205,6 +223,7 @@
           "summer_entity": "Summer season entity (optional)"
         },
         "data_description": {
+          "climate_entity": "The climate entity of the AC to control.",
           "power_sources": "sensor / number / input_number entities: a zone, or any other source you add.",
           "cool_sources": "Optional: cooling powers of the zones. Without them the AC only handles heating.",
           "fraction_entity": "The AC stops heating when this fraction reaches the cut-off. Empty = no cut-off.",
@@ -230,14 +249,17 @@
         "title": "Reference temperature",
         "data": {
           "source_entity": "Temperature entity (current value and history)",
-          "seuil_haut": "High threshold: 0 % boiler above",
           "fallback_temperature": "Fallback temperature",
           "min_fraction": "Minimum fraction to use the boiler",
+          "seuil_haut": "High threshold: 0 % boiler above",
           "seuil_bas": "Low threshold: 100 % boiler below"
         },
         "data_description": {
+          "source_entity": "Temperature read live; yesterday's mean is computed from its history.",
           "fallback_temperature": "Used for a missing temperature (10 °C like the old template).",
-          "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over)."
+          "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over).",
+          "seuil_haut": "Above this temperature: 0 % boiler. Between the two thresholds the fraction varies linearly.",
+          "seuil_bas": "Below this temperature: 100 % boiler."
         }
       }
     }

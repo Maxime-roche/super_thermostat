@@ -12,7 +12,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
-    AC_STATUSES, BOILER_STATUSES, CONF_TYPE, CONF_VALVE_SOURCE, CONF_VALVES, TYPE_AC, TYPE_BOILER, TYPE_ZONE, ZONE_STATUSES,
+    AC_STATUSES, BOILER_STATUSES, CONF_TYPE, CONF_VALVE_PROPORTIONAL, CONF_VALVE_SOURCE,
+    CONF_VALVES, TYPE_AC, TYPE_BOILER, TYPE_ZONE, ZONE_STATUSES,
 )
 from .entity import ControllerEntity
 
@@ -63,8 +64,8 @@ async def async_setup_entry(
                 ControllerSensor(
                     c, "valve_target", lambda: c.valve_target, unit=PERCENTAGE,
                     attrs_fn=lambda: {
-                        "source": (c.cfg.get(CONF_VALVE_SOURCE) or "zone_boiler_power")
-                        if c.valve_new_style else f"legacy:{c.valve_mode}",
+                        "source": c.cfg.get(CONF_VALVE_SOURCE) or "zone_boiler_power",
+                        "proportional": c.cfg.get(CONF_VALVE_PROPORTIONAL, True),
                         "other_zone_demand": c._other_zone_demand(),
                         "valves": {
                             e: (c.hass.states.get(e).state if c.hass.states.get(e) else None)

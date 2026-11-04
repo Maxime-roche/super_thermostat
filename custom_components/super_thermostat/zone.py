@@ -23,17 +23,16 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 
 from .const import (
-    ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, COOL_OFF, CONF_ALLOWED, CONF_AUTOLEARN,
-    CONF_CYCLE, CONF_DIR_DELTA_COOL, CONF_DIR_DELTA_HEAT, CONF_FAIL_OFFSET_COOL,
-    CONF_FAIL_OFFSET_HEAT, CONF_FAILSAFE_POWER, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES,
+    ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, CONF_ALLOWED, CONF_AUTOLEARN, CONF_CYCLE,
+    CONF_FAIL_OFFSET, CONF_FAILSAFE_POWER, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES,
     CONF_MAX_SENSOR_AGE, CONF_MIN_POWER, CONF_OFFSET_NEXT_FULL, CONF_OUTDOOR_ENTITY,
-    CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVES, CONF_VALVE_CUSTOM, CONF_VALVE_FOLLOW, CONF_VALVE_KEEP_OPEN,
-    CONF_VALVE_ALERT_MINUTES, CONF_VALVE_NEVER_CLOSE, CONF_VALVE_POSITIONS, CONF_VALVE_SOURCE,
-    CONF_VALVE_LEVEL, CONF_VALVE_MIN_STEP, CONF_VALVE_MODE, CONF_VALVE_OPEN_MAX,
-    CONF_VALVE_OPEN_MIN, CONF_WINDOWS,
-    CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY, CONF_ZONE_SEASON,
-    DEFAULT_TARGET_COOL, DEFAULT_TARGET_HEAT, DEFAULT_ZONE_OPTIONS, DOMAIN, FIXED_PRESETS,
-    PRESET_ALIASES, PRESET_DEFAULTS, STORAGE_VERSION, FOLLOW_TOTAL, VALVE_ALERT_GAP, VALVE_CUSTOM, VALVE_DEMAND, VALVE_FRACTION, VALVE_PROPORTIONAL, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
+    CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVE_ALERT_MINUTES, CONF_VALVE_KEEP_OPEN,
+    CONF_VALVE_LEVEL, CONF_VALVE_MIN_STEP, CONF_VALVE_NEVER_CLOSE, CONF_VALVE_OPEN_MAX,
+    CONF_VALVE_OPEN_MIN, CONF_VALVE_POSITIONS, CONF_VALVE_PROPORTIONAL, CONF_VALVE_SOURCE,
+    CONF_VALVES, CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY, CONF_WINDOWS,
+    CONF_ZONE_SEASON, COOL_OFF, DEFAULT_TARGET_COOL, DEFAULT_TARGET_HEAT,
+    DEFAULT_ZONE_OPTIONS, DOMAIN, FIXED_PRESETS, PRESET_ALIASES, PRESET_DEFAULTS,
+    STORAGE_VERSION, VALVE_ALERT_GAP, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
     Z_OFF, Z_SENSOR_FAILURE, Z_SUSPENDED,
 )
 from .engine import (
@@ -63,10 +62,8 @@ class ZoneController:
             autolearn=bool(self.cfg[CONF_AUTOLEARN]),
             threshold_hot=float(self.cfg[CONF_THRESHOLD_HOT]),
             offset_next_full=float(self.cfg[CONF_OFFSET_NEXT_FULL]),
-            dir_delta_heat=float(self.cfg[CONF_DIR_DELTA_HEAT]),
-            dir_delta_cool=float(self.cfg[CONF_DIR_DELTA_COOL]),
-            fail_offset_heat=float(self.cfg[CONF_FAIL_OFFSET_HEAT]),
-            fail_offset_cool=float(self.cfg[CONF_FAIL_OFFSET_COOL]),
+            fail_offset_heat=float(self.cfg[CONF_FAIL_OFFSET]),
+            fail_offset_cool=float(self.cfg[CONF_FAIL_OFFSET]),
         )
         self.state = ZoneState()
         self.hvac_mode: str = self.default_hvac_mode
@@ -221,16 +218,10 @@ class ZoneController:
                     self.hass, [self.cfg[CONF_FRACTION_ENTITY]], self._on_fraction_event
                 )
             )
-        if self.valve_new_style and self.cfg.get(CONF_VALVE_SOURCE):
+        if self.cfg.get(CONF_VALVE_SOURCE):
             self._unsubs.append(
                 async_track_state_change_event(
                     self.hass, [self.cfg[CONF_VALVE_SOURCE]], self._on_fraction_event
-                )
-            )
-        if not self.valve_new_style and self.cfg.get(CONF_VALVE_CUSTOM) and self.cfg.get(CONF_VALVE_MODE) == VALVE_CUSTOM:
-            self._unsubs.append(
-                async_track_state_change_event(
-                    self.hass, [self.cfg[CONF_VALVE_CUSTOM]], self._on_fraction_event
                 )
             )
         pairs = self.valve_pairs
@@ -302,14 +293,6 @@ class ZoneController:
         self._notify()
 
     # ---- vannes thermostatiques ----
-    @property
-    def valve_mode(self) -> str:
-        """Mode choisi ; une ancienne configuration sans mode garde le suivi de la fraction."""
-        mode = self.entry.options.get(CONF_VALVE_MODE) or self.entry.data.get(CONF_VALVE_MODE)
-        if not mode:
-            return VALVE_FRACTION if self.cfg.get(CONF_VALVES) else VALVE_PROPORTIONAL
-        return mode
-
     def _other_zones(self) -> list["ZoneController"]:
         zones: list[ZoneController] = []
         for entry in self.hass.config_entries.async_entries(DOMAIN):
@@ -321,28 +304,17 @@ class ZoneController:
     def _other_zone_demand(self) -> bool:
         return any(zone.power_boiler > 0 for zone in self._other_zones())
 
-    def _valve_demand(self) -> int:
-        """Demande suivie par les vannes : puissance chaudière de la zone (ou chauffe totale)."""
-        if self.hvac_mode == "off":
-            return 0
-        follow = self.cfg.get(CONF_VALVE_FOLLOW)
-        return self.power_heat if follow == FOLLOW_TOTAL else self.power_boiler
-
-    @property
-    def valve_new_style(self) -> bool:
-        """Configuration enregistrée depuis l'onglet Vannes actuel (champ « demande suivie » libre)."""
-        return CONF_VALVE_SOURCE in self.entry.options or CONF_VALVE_SOURCE in self.entry.data
-
     def _valve_target(self) -> int | None:
         """Ouverture voulue (0-100) ; None = ne rien envoyer (on garde l'ouverture actuelle).
 
-        La valeur (0-100 %) de l'entité choisie — par défaut la puissance chaudière de la zone —
-        est ramenée à la plage d'ouverture : 1 % -> ouverture min, 100 % -> ouverture max.
+        La demande est la valeur (0-100 %) de l'entité choisie — par défaut la puissance chaudière
+        de la zone. Dès qu'elle est positive :
+          * ouverture proportionnelle : 1 % -> ouverture min, 100 % -> ouverture max ;
+          * sinon : ouverture fixe (100 % si le champ est vide).
+        Quand elle tombe à 0 : ouverture minimale (« ne jamais fermer »), sinon on garde l'ouverture
+        tant qu'aucune autre zone ne demande, sinon fermeture.
         """
-        if not self.valve_new_style:
-            return self._valve_target_legacy()
         low = float(self.cfg.get(CONF_VALVE_OPEN_MIN, 15))
-        high = float(self.cfg.get(CONF_VALVE_OPEN_MAX, 70))
         if self.hvac_mode == "off":
             demand: float | None = 0.0
         else:
@@ -351,35 +323,14 @@ class ZoneController:
         if demand is None:
             return None  # source indisponible : on ne touche à rien
         if demand > 0:
+            if not self.cfg.get(CONF_VALVE_PROPORTIONAL, True):
+                level = self.cfg.get(CONF_VALVE_LEVEL)
+                return int(round(100 if level in (None, "") else float(level)))
+            high = float(self.cfg.get(CONF_VALVE_OPEN_MAX, 70))
             level = min(max(demand, 1.0), 100.0)
             return int(round(low + (high - low) * (level - 1) / 99))
-        # demande à 0
         if self.cfg.get(CONF_VALVE_NEVER_CLOSE, False):
-            return int(round(low))  # jamais fermée : ouverture minimale
-        if self.cfg.get(CONF_VALVE_KEEP_OPEN, True) and not self._other_zone_demand():
-            return None  # on garde l'ouverture actuelle
-        return 0
-
-    def _valve_target_legacy(self) -> int | None:
-        """Anciennes configurations (avant le champ libre) : mode proportionnel / fraction / personnalisé."""
-        mode = self.valve_mode
-        if mode == VALVE_CUSTOM:
-            if self.hvac_mode == "off":
-                return None
-            value = read_number(self.hass, self.cfg.get(CONF_VALVE_CUSTOM))
-            return None if value is None else int(round(max(0.0, min(100.0, value))))
-        if mode == VALVE_FRACTION:
-            return None if self.hvac_mode == "off" else int(round(self.fraction))
-        # proportionnel (l'ancien mode « demande » = même ouverture au min et au max)
-        if mode == VALVE_DEMAND:
-            low = high = float(self.cfg.get(CONF_VALVE_LEVEL, 100))
-        else:
-            low = float(self.cfg.get(CONF_VALVE_OPEN_MIN, 15))
-            high = float(self.cfg.get(CONF_VALVE_OPEN_MAX, 70))
-        demand = self._valve_demand()
-        if demand > 0:
-            return int(round(low + (high - low) * (min(demand, 100) - 1) / 99))
-        # plus de demande : on ne ferme que si une autre zone demande (sinon la chaudière est à l'arrêt)
+            return int(round(low))
         if self.cfg.get(CONF_VALVE_KEEP_OPEN, True) and not self._other_zone_demand():
             return None
         return 0
@@ -519,7 +470,7 @@ class ZoneController:
             return
         self.params.heat_allowed = self.sense == HEAT
         self.params.cool_allowed = self.sense == COOL
-        self.params.forced_direction = 1 if self.sense == HEAT else -1
+        self.params.direction = 1 if self.sense == HEAT else -1
         consigne = self.target_heat if self.sense == HEAT else self.target_cool
 
         result = run_cycle(self.params, self.state, time.time(), consigne, temp_in, temp_out)

@@ -19,21 +19,19 @@ CONF_CYCLE = "cycle_minutes"
 CONF_MAX_SENSOR_AGE = "max_sensor_age"
 CONF_FAILSAFE_POWER = "failsafe_power"
 CONF_MIN_POWER = "min_power"
+CONF_FAIL_OFFSET = "fail_offset"  # marge de détection de défaillance (chauffe et froid)
+CONF_VALVE_PROPORTIONAL = "valve_proportional"
 CONF_LIMIT_CYCLES = "limit_cycles"
 CONF_AUTOLEARN = "autolearn"
-CONF_FAIL_OFFSET_HEAT = "fail_offset_heat"
-CONF_FAIL_OFFSET_COOL = "fail_offset_cool"
 CONF_THRESHOLD_HOT = "threshold_hot"
 CONF_OFFSET_NEXT_FULL = "offset_next_full"
-CONF_DIR_DELTA_HEAT = "dir_delta_heat"
-CONF_DIR_DELTA_COOL = "dir_delta_cool"
 CONF_FRACTION_ENTITY = "boiler_fraction_entity"
 CONF_ZONE_SEASON = "season_entity"
 FIXED_PRESETS = "home, sleep, away"  # Jour, Nuit, Parti : fixes
 CONF_VALVES = "valve_entities"
 CONF_VALVE_MODE = "valve_mode"
 CONF_VALVE_LEVEL = "valve_open_level"
-CONF_VALVE_CUSTOM = "valve_custom_entity"
+CONF_VALVE_CUSTOM = "valve_custom_entity"  # ancien mode « personnalisé » (migration)
 CONF_WINDOWS = "windows"
 CONF_WINDOW_STOP_DELAY = "window_stop_delay"
 CONF_WINDOW_RESTART_DELAY = "window_restart_delay"
@@ -47,33 +45,23 @@ CONF_VALVE_ALERT_MINUTES = "valve_alert_minutes"    # 0 = alerte désactivée
 VALVE_ALERT_GAP = 10  # écart fixe (%) entre consigne et position réelle avant de compter une dérive
 CONF_VALVE_SOURCE = "valve_source"            # entité 0-100 % qui pilote l'ouverture (vide = puissance chaudière de la zone)
 CONF_VALVE_NEVER_CLOSE = "valve_never_close"  # ne jamais fermer complètement : minimum d'ouverture
-CONF_VALVE_FOLLOW = "valve_follow"
 CONF_VALVE_OPEN_MIN = "valve_open_min"
 CONF_VALVE_OPEN_MAX = "valve_open_max"
 CONF_VALVE_MIN_STEP = "valve_min_step"
 CONF_VALVE_KEEP_OPEN = "valve_keep_open"
-VALVE_DEMAND = "demand"            # ancien mode « ouvert / fermé » (traité comme proportionnel min = max)
-VALVE_PROPORTIONAL = "proportional"  # ouverture proportionnelle à la demande de la zone
-VALVE_FRACTION = "fraction"        # ouverture = fraction chaudière
-VALVE_CUSTOM = "custom"            # ouverture = valeur d'une entité choisie
-FOLLOW_BOILER = "boiler"           # demande suivie : puissance chaudière de la zone
-FOLLOW_TOTAL = "total"             # demande suivie : puissance de chauffe totale
 
 DEFAULT_ZONE_OPTIONS = {
     CONF_CYCLE: 60,
     CONF_MAX_SENSOR_AGE: 120,
     CONF_FAILSAFE_POWER: 0,
     CONF_MIN_POWER: 5,
+    CONF_FAIL_OFFSET: 1,
+    CONF_VALVE_PROPORTIONAL: True,
     CONF_LIMIT_CYCLES: False,
     CONF_AUTOLEARN: True,
-    CONF_FAIL_OFFSET_HEAT: 1,
-    CONF_FAIL_OFFSET_COOL: 1,
     CONF_THRESHOLD_HOT: 100,
     CONF_OFFSET_NEXT_FULL: 0,
-    CONF_DIR_DELTA_HEAT: 0,
-    CONF_DIR_DELTA_COOL: 0,
     CONF_VALVE_LEVEL: 100,  # ancien mode « demande »
-    CONF_VALVE_FOLLOW: FOLLOW_BOILER,
     CONF_VALVE_OPEN_MIN: 15,
     CONF_VALVE_OPEN_MAX: 70,
     CONF_VALVE_MIN_STEP: 5,
@@ -152,15 +140,12 @@ BOILER_STATUSES = [B_DISABLED, B_IDLE, B_CIRCULATING, B_HEATING, B_WATER_FAILURE
 
 # --- fraction chaudière (répartition chaudière / clim) ---
 CONF_FRACTION_SOURCE = "source_entity"
-CONF_FRACTION_MODE = "source_mode"
 CONF_FALLBACK_TEMP = "fallback_temperature"
-MODE_VALUE = "value"
-MODE_YESTERDAY = "yesterday_mean"
 CONF_SEUIL_HAUT = "seuil_haut"
 CONF_SEUIL_BAS = "seuil_bas"
 CONF_MIN_FRACTION = "min_fraction"
 DEFAULT_FRACTION_OPTIONS = {
-    CONF_FRACTION_MODE: MODE_YESTERDAY, CONF_FALLBACK_TEMP: 10,
+    CONF_FALLBACK_TEMP: 10,
     CONF_SEUIL_HAUT: 9, CONF_SEUIL_BAS: -3, CONF_MIN_FRACTION: 15,
 }
 

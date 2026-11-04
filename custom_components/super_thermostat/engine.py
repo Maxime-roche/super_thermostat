@@ -43,12 +43,10 @@ class ZoneParams:
     cool_allowed: bool = True
     threshold_hot: float = 100.0  # threshold_heathot
     offset_next_full: float = 0.0  # offset_nextFullCyle (0 = désactivé)
-    dir_delta_heat: float = 0.0  # direction::delta::heat
-    dir_delta_cool: float = 0.0  # direction::delta::cool
     fail_offset_heat: float = 1.0  # offsetHeatFaillure
     fail_offset_cool: float = 1.0  # offsetColdFaillure
     delta_order: float = 0.0  # « Delta consigne »
-    forced_direction: int = 0  # +1 chauffe / -1 froid imposés par la zone (0 = déduit de la température)
+    direction: int = 1  # +1 chauffe / -1 froid : imposé par la zone (saison, température, mode)
 
 
 @dataclass
@@ -132,21 +130,7 @@ def calc_temporal(
     diff_in = consigne - temp_in
     diff_out = consigne - temp_out
 
-    if p.forced_direction:
-        # zone à deux consignes : le sens est déjà choisi (saison / température)
-        direction = 1 if p.forced_direction > 0 else -1
-    else:
-        direction = 1 if consigne > temp_in else -1
-        if direction < 0 and (
-            (temp_in < consigne + 0.5 and s.last_state == HEAT)
-            or (consigne - temp_out) > p.dir_delta_heat
-        ):
-            direction = 1
-        if direction > 0 and (
-            (temp_in > consigne - 0.5 and s.last_state == COOL)
-            or (consigne - temp_out) < p.dir_delta_cool
-        ):
-            direction = -1
+    direction = 1 if p.direction >= 0 else -1
 
     if temp_in >= consigne + 1.5 and direction == 1:
         return 0.0, direction

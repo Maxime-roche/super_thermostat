@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 from .boiler import BoilerController
 from .ac import ACController
 from .const import CONF_TYPE, TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE
+from .migration import migrate_valve_options
 from .fraction import FractionController
 from .zone import ZoneController
 
@@ -28,6 +29,11 @@ PLATFORMS = {
 
 async def async_setup_entry(hass: HomeAssistant, entry: SuperThermostatConfigEntry) -> bool:
     kind = entry.data[CONF_TYPE]
+    if kind == TYPE_ZONE:
+        # anciennes vannes -> champ libre « demande suivie » (une fois, avant d'écouter les changements)
+        migrated = migrate_valve_options(dict(entry.data), dict(entry.options))
+        if migrated is not None:
+            hass.config_entries.async_update_entry(entry, options=migrated)
     controller_class = {
         TYPE_ZONE: ZoneController, TYPE_BOILER: BoilerController,
         TYPE_FRACTION: FractionController, TYPE_AC: ACController,

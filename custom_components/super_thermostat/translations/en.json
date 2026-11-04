@@ -131,8 +131,10 @@
           "valve_position_entities": "Real valve positions (same order as the valves)",
           "valve_alert_minutes": "'Valve not following' alert after",
           "valve_source": "Demand followed (0-100 % entity)",
-          "valve_open_min": "Opening at 1 % demand",
-          "valve_open_max": "Opening at 100 % demand",
+          "valve_proportional": "Proportional opening",
+          "valve_open_min": "Minimum opening (at 1 % demand)",
+          "valve_open_max": "Maximum opening (at 100 % demand)",
+          "valve_open_level": "Fixed opening (non-proportional)",
           "valve_min_step": "Minimum difference before changing the opening",
           "valve_never_close": "Never close completely (stay at the minimum opening)",
           "valve_keep_open": "Keep open while no other zone calls for heat"
@@ -142,8 +144,10 @@
           "valve_position_entities": "Optional: one sensor per valve (e.g. …_valve_position), in the same order as the valves above. Used to compare the real position with the setpoint sent.",
           "valve_alert_minutes": "If the real position stays more than 10 % away from the setpoint for this long, the 'Valve not following' indicator turns on. 0 = no alert. The delay restarts at each new order.",
           "valve_source": "Entity whose value (0-100 %) drives the opening: the zone's boiler or heating power, the boiler fraction, or any entity you like. Empty = the zone's boiler power.",
-          "valve_open_min": "Opening at minimum demand (1 %). E.g. 15 %. With 'never close' it is also the opening at zero demand.",
-          "valve_open_max": "Opening at 100 % demand. E.g. 70 %. In between the opening varies linearly.",
+          "valve_proportional": "On: the opening follows demand between the minimum and maximum openings. Off: the valve opens to the fixed opening as soon as the zone calls for heat (the zone's thermostat already modulates power).",
+          "valve_open_min": "Proportional mode: opening at 1 % demand. Also the opening when the zone no longer calls for heat and 'never close' is on.",
+          "valve_open_max": "Proportional mode: opening at 100 % demand. In between the opening varies linearly.",
+          "valve_open_level": "Only used when proportional opening is off. Empty = 100 %.",
           "valve_min_step": "The valve is only changed when the wanted opening differs from the current one by at least this percentage (full closing is always applied).",
           "valve_never_close": "When demand is 0 the valve goes to the minimum opening instead of closing. Takes priority over 'keep open'.",
           "valve_keep_open": "When demand drops to 0 the valve stays as is unless another zone calls for boiler heat, then it closes. Off: closes immediately."
@@ -157,8 +161,7 @@
           "autolearn": "Auto-learning",
           "threshold_hot": "'Previous cycle hot' threshold",
           "offset_next_full": "Reduction after a hot cycle (0 = off)",
-          "fail_offset_heat": "Heating failure margin",
-          "fail_offset_cool": "Cooling failure margin"
+          "fail_offset": "Failure detection margin"
         },
         "data_description": {
           "min_power": "Below this percentage the zone requests nothing: avoids useless tiny demands.",
@@ -166,8 +169,7 @@
           "autolearn": "The zone tunes its own coefficients from the room's real temperature rise. Turn off to freeze them.",
           "threshold_hot": "If the previous cycle went above this percentage the radiator is still hot: the next cycle is reduced (see reduction below).",
           "offset_next_full": "Percentage removed from the next cycle after a very hot one, to account for radiator inertia. 0 = off.",
-          "fail_offset_heat": "If the zone heats but the temperature stays more than X °C below the setpoint and keeps falling, 2 cycles in a row: 'heating failure'.",
-          "fail_offset_cool": "Same detection for cooling: temperature more than X °C above the setpoint and rising, 2 cycles in a row."
+          "fail_offset": "If the zone heats (or cools) but the temperature stays more than X °C from the setpoint and keeps moving away, 2 cycles in a row: 'heating / cooling failure'."
         }
       },
       "windows": {

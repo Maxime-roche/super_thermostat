@@ -131,8 +131,10 @@
           "valve_position_entities": "Position réelle des vannes (même ordre que les vannes)",
           "valve_alert_minutes": "Alerte « vanne qui ne suit pas » après",
           "valve_source": "Demande suivie (entité 0-100 %)",
-          "valve_open_min": "Ouverture à 1 % de demande",
-          "valve_open_max": "Ouverture à 100 % de demande",
+          "valve_proportional": "Ouverture proportionnelle",
+          "valve_open_min": "Ouverture minimale (à 1 % de demande)",
+          "valve_open_max": "Ouverture maximale (à 100 % de demande)",
+          "valve_open_level": "Ouverture fixe (sans proportionnel)",
           "valve_min_step": "Écart minimal avant de changer l'ouverture",
           "valve_never_close": "Ne jamais fermer complètement (rester à l'ouverture minimale)",
           "valve_keep_open": "Garder ouvert tant qu'aucune autre zone ne demande"
@@ -142,8 +144,10 @@
           "valve_position_entities": "Facultatif : un capteur par vanne (ex. …_valve_position), dans le même ordre que les vannes ci-dessus. Sert à comparer la position réelle à la consigne envoyée.",
           "valve_alert_minutes": "Si la position réelle s'écarte de plus de 10 % de la consigne pendant cette durée, l'indicateur « Vanne qui ne suit pas » s'active. 0 = pas d'alerte. Le délai repart de zéro à chaque nouvel ordre.",
           "valve_source": "Entité dont la valeur (0-100 %) pilote l'ouverture : « Puissance chaudière » ou « Puissance de chauffe » de la zone, la fraction chaudière, ou toute entité de ton choix. Vide = puissance chaudière de la zone.",
-          "valve_open_min": "Ouverture quand la demande est minimale (1 %). Ex. 15 %. Avec « ne jamais fermer », c'est aussi l'ouverture à demande 0.",
-          "valve_open_max": "Ouverture quand la demande est de 100 %. Ex. 70 %. Entre les deux, l'ouverture varie linéairement.",
+          "valve_proportional": "Activé : l'ouverture suit la demande entre l'ouverture minimale et maximale. Désactivé : la vanne s'ouvre à l'ouverture fixe dès que la zone demande de la chaleur (le thermostat de la zone règle déjà la puissance).",
+          "valve_open_min": "Mode proportionnel : ouverture à 1 % de demande. Sert aussi d'ouverture quand la zone ne demande plus et que « ne jamais fermer » est activé.",
+          "valve_open_max": "Mode proportionnel : ouverture à 100 % de demande. Entre les deux, l'ouverture varie linéairement.",
+          "valve_open_level": "Utilisée seulement si l'ouverture proportionnelle est désactivée. Vide = 100 %.",
           "valve_min_step": "La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (la fermeture complète est toujours appliquée).",
           "valve_never_close": "Quand la demande est à 0, la vanne passe à l'ouverture minimale au lieu de se fermer. Prioritaire sur « garder ouvert ».",
           "valve_keep_open": "Quand la demande tombe à 0, la vanne reste telle quelle sauf si une autre zone demande de la chaudière : elle se ferme alors. Désactivé : fermeture immédiate."
@@ -157,8 +161,7 @@
           "autolearn": "Auto-apprentissage",
           "threshold_hot": "Seuil « cycle précédent chaud »",
           "offset_next_full": "Réduction après un cycle chaud (0 = off)",
-          "fail_offset_heat": "Marge détection défaillance chauffage",
-          "fail_offset_cool": "Marge détection défaillance clim"
+          "fail_offset": "Marge de détection de défaillance"
         },
         "data_description": {
           "min_power": "Sous ce pourcentage, la zone ne demande rien : évite les micro-demandes inutiles.",
@@ -166,8 +169,7 @@
           "autolearn": "La zone corrige seule ses coefficients d'après la montée en température réelle de la pièce. Désactive pour les figer.",
           "threshold_hot": "Si le cycle précédent a dépassé ce pourcentage, le radiateur est encore chaud : le cycle suivant est réduit (voir réduction ci-dessous).",
           "offset_next_full": "Pourcentage retiré au cycle suivant après un cycle très chaud, pour tenir compte de l'inertie du radiateur. 0 = désactivé.",
-          "fail_offset_heat": "Si la zone chauffe mais que la température reste plus de X °C sous la consigne et baisse, 2 cycles de suite : statut « défaillance chauffage ».",
-          "fail_offset_cool": "Même détection côté froid : température plus de X °C au-dessus de la consigne et qui monte, 2 cycles de suite."
+          "fail_offset": "Si la zone chauffe (ou refroidit) mais que la température reste à plus de X °C de la consigne et continue de s'en éloigner, 2 cycles de suite : statut « défaillance chauffage / clim »."
         }
       },
       "windows": {

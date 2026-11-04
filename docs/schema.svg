@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 824" width="640" height="824" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
+<rect width="640" height="824" fill="#ffffff"/>
+<text x="320.0" y="34" font-size="26" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Super Thermostat : comment ça marche</text>
+<text x="10" y="70" font-size="21" font-weight="bold" fill="#222" text-anchor="start">① Mesures</text>
+<rect x="10" y="82" width="196" height="96" rx="10" fill="#E1EEFB" stroke="#3B78B8" stroke-width="2"/>
+<text x="108.0" y="110" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Températures</text>
+<text x="108.0" y="138" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">pièce et extérieure</text>
+<rect x="222" y="82" width="196" height="96" rx="10" fill="#E1EEFB" stroke="#3B78B8" stroke-width="2"/>
+<text x="320.0" y="110" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Fenêtres, saison</text>
+<text x="320.0" y="138" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">ouvertes ? été ?</text>
+<rect x="434" y="82" width="196" height="96" rx="10" fill="#E1EEFB" stroke="#3B78B8" stroke-width="2"/>
+<text x="532.0" y="110" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Fraction chaudière</text>
+<text x="532.0" y="138" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">0 % : il fait doux</text>
+<text x="532.0" y="160" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">100 % : grand froid</text>
+<line x1="320.0" y1="182" x2="320.0" y2="226" stroke="#444" stroke-width="3" marker-end="url(#a)"/>
+<text x="334.0" y="209.0" font-size="15" font-weight="normal" fill="#555" text-anchor="start">mesures</text>
+<text x="10" y="250" font-size="21" font-weight="bold" fill="#222" text-anchor="start">② Zone (une par pièce)</text>
+<rect x="10" y="262" width="620" height="186" rx="10" fill="#DFF3E5" stroke="#3E9B5E" stroke-width="2"/>
+<text x="320.0" y="292" font-size="19" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Deux consignes : chauffe et froid</text>
+<text x="320.0" y="318" font-size="16" font-weight="normal" fill="#1b1b1b" text-anchor="middle">Elle calcule des pourcentages et apprend la pièce.</text>
+<text x="320.0" y="340" font-size="16" font-weight="normal" fill="#1b1b1b" text-anchor="middle">Elle ne commande aucun appareil.</text>
+<rect x="22" y="362" width="188" height="70" rx="8" fill="#ffffff" stroke="#3E9B5E" stroke-width="1.5"/>
+<text x="116" y="390" font-size="16" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Puissance</text>
+<text x="116" y="414" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">de chauffe</text>
+<rect x="224" y="362" width="188" height="70" rx="8" fill="#ffffff" stroke="#3E9B5E" stroke-width="1.5"/>
+<text x="318" y="390" font-size="16" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Puissance chaudière</text>
+<text x="318" y="414" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">= chauffe × fraction</text>
+<rect x="426" y="362" width="188" height="70" rx="8" fill="#ffffff" stroke="#3E9B5E" stroke-width="1.5"/>
+<text x="520" y="390" font-size="16" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Puissance</text>
+<text x="520" y="414" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">de froid</text>
+<line x1="320.0" y1="452" x2="320.0" y2="496" stroke="#444" stroke-width="3" marker-end="url(#a)"/>
+<text x="334.0" y="479.0" font-size="15" font-weight="normal" fill="#555" text-anchor="start">pourcentages</text>
+<text x="10" y="520" font-size="21" font-weight="bold" fill="#222" text-anchor="start">③ Gestionnaires</text>
+<rect x="10" y="532" width="196" height="140" rx="10" fill="#FDEBD3" stroke="#D58A2B" stroke-width="2"/>
+<text x="108.0" y="560" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Gestion chaudière</text>
+<text x="108.0" y="587" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">Additionne les % de</text>
+<text x="108.0" y="608" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">chaudière (100 % max)</text>
+<text x="108.0" y="629" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">Circulateur si % > 0</text>
+<text x="108.0" y="650" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">Eau chaude selon le %</text>
+<rect x="222" y="532" width="196" height="140" rx="10" fill="#FDEBD3" stroke="#D58A2B" stroke-width="2"/>
+<text x="320.0" y="560" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Gestion clim</text>
+<text x="320.0" y="587" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">Suit la puissance de</text>
+<text x="320.0" y="608" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">la zone. Coupée si la</text>
+<text x="320.0" y="629" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">fraction atteint le</text>
+<text x="320.0" y="650" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">seuil réglé</text>
+<rect x="434" y="532" width="196" height="140" rx="10" fill="#FDEBD3" stroke="#D58A2B" stroke-width="2"/>
+<text x="532.0" y="560" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Vannes</text>
+<text x="532.0" y="587" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">Ouvertes selon la</text>
+<text x="532.0" y="608" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">demande de la zone</text>
+<text x="532.0" y="629" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">(proportionnelle</text>
+<text x="532.0" y="650" font-size="14.5" font-weight="normal" fill="#1b1b1b" text-anchor="middle">ou ouverture fixe)</text>
+<line x1="108" y1="676" x2="108" y2="716" stroke="#444" stroke-width="3" marker-end="url(#a)"/>
+<line x1="320" y1="676" x2="320" y2="716" stroke="#444" stroke-width="3" marker-end="url(#a)"/>
+<line x1="532" y1="676" x2="532" y2="716" stroke="#444" stroke-width="3" marker-end="url(#a)"/>
+<text x="334" y="700" font-size="15" font-weight="normal" fill="#555" text-anchor="start">ordres</text>
+<text x="10" y="740" font-size="21" font-weight="bold" fill="#222" text-anchor="start">④ Appareils</text>
+<rect x="10" y="750" width="196" height="58" rx="10" fill="#EEEEEE" stroke="#777777" stroke-width="2"/>
+<text x="108" y="774" font-size="16" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Brûleur +</text>
+<text x="108" y="796" font-size="15" fill="#1b1b1b" text-anchor="middle">circulateur</text>
+<rect x="222" y="750" width="196" height="58" rx="10" fill="#EEEEEE" stroke="#777777" stroke-width="2"/>
+<text x="320" y="774" font-size="16" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Clim</text>
+<text x="320" y="796" font-size="15" fill="#1b1b1b" text-anchor="middle">réversible</text>
+<rect x="434" y="750" width="196" height="58" rx="10" fill="#EEEEEE" stroke="#777777" stroke-width="2"/>
+<text x="532" y="774" font-size="16" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Vannes</text>
+<text x="532" y="796" font-size="15" fill="#1b1b1b" text-anchor="middle">thermostatiques</text>
+</svg>

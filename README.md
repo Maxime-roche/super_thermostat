@@ -1,11 +1,15 @@
 # Super Thermostat
 
-Intégration Home Assistant qui reprend le moteur du plugin *Thermostat* de Jeedom (régulation proportionnelle au temps, avec anticipation sur la température extérieure et **auto-apprentissage**) et le sépare en deux rôles :
+Intégration Home Assistant pour piloter chauffage, clim et vannes thermostatiques **depuis l'interface, sans YAML**. Elle reprend le moteur du plugin *Thermostat* de Jeedom (régulation avec anticipation sur la température extérieure et **auto-apprentissage**) et le sépare en deux rôles : des **zones** qui calculent des pourcentages, et des **gestionnaires** qui pilotent les appareils.
 
-- des **zones** qui calculent chacune un **pourcentage** de chauffe ou de froid, sans piloter aucun appareil ;
-- des **gestionnaires** (chaudière, clim) qui additionnent ces pourcentages et pilotent les appareils.
+![Schéma de fonctionnement](docs/schema.svg)
 
-Tout se configure depuis l'interface de Home Assistant, aucun YAML n'est nécessaire.
+**En 30 secondes**
+
+1. **Mesures** : la température de la pièce et de l'extérieur, les fenêtres, la saison. La *fraction chaudière* dit quelle part de la chaleur vient de la chaudière : 0 % quand il fait doux, 100 % quand il fait froid.
+2. **Zone** (une par pièce) : elle a deux consignes, chauffe et froid, et calcule des pourcentages. Elle ne commande aucun appareil.
+3. **Gestionnaires** : la chaudière additionne les pourcentages, la clim les suit, les vannes s'ouvrent selon la demande.
+4. **Appareils** : brûleur et circulateur, clim réversible, vannes thermostatiques.
 
 > Prérequis : Home Assistant **2026.10** ou plus récent.
 
@@ -13,43 +17,19 @@ Tout se configure depuis l'interface de Home Assistant, aucun YAML n'est nécess
 
 ## Sommaire
 
-1. [Vue d'ensemble](#vue-densemble)
-2. [Installation](#installation)
-3. [Mise en route pas à pas](#mise-en-route-pas-à-pas)
-4. [Les quatre types d'entrées](#les-quatre-types-dentrées)
-   - [Zone](#1-zone)
+1. [Installation](#installation)
+2. [Mise en route pas à pas](#mise-en-route-pas-à-pas)
+3. [Les quatre types d'entrées](#les-quatre-types-dentrées)
+   - [Zone](#1-zone) (dont les [vannes thermostatiques](#vannes-thermostatiques))
    - [Fraction chaudière](#2-fraction-chaudière)
    - [Gestion chaudière](#3-gestion-chaudière)
    - [Gestion clim](#4-gestion-clim)
-5. [Comment ça calcule](#comment-ça-calcule)
-6. [Exemples](#exemples)
-7. [Dépannage](#dépannage)
-8. [Sécurité et limites](#sécurité-et-limites)
-9. [Historique des versions](#historique-des-versions)
-10. [Crédits et licence](#crédits-et-licence)
-
----
-
-## Vue d'ensemble
-
-```mermaid
-flowchart LR
-    T[Sonde intérieure / extérieure] --> Z
-    subgraph Zones
-      Z[Zone<br/>2 consignes : chauffe / froid]
-    end
-    F[Fraction chaudière<br/>0-100 %] --> Z
-    Z -- Puissance chaudière<br/>= chauffe × fraction --> B[Gestion chaudière<br/>circulateur + brûleur]
-    Z -- Puissance de chauffe<br/>totale --> C[Gestion clim]
-    Z -- Puissance de froid --> C
-    F -- seuil de coupure --> C
-    Z -- ouverture proportionnelle<br/>à la demande --> V[Vannes thermostatiques]
-```
-
-- Une **zone** = une pièce (ou un groupe de pièces) avec **deux consignes** : chauffe et froid. L'écart entre les deux est une zone morte, la chauffe et la clim ne peuvent pas se battre.
-- La **fraction chaudière** dit quelle part de la chaleur vient de la chaudière selon la météo : 0 % quand il fait doux, 100 % quand il fait froid (la clim réversible prend le relais quand il fait doux).
-- La **gestion chaudière** additionne les puissances reçues (plafonnées à 100 %), allume le circulateur dès qu'il y a une demande et règle la température d'eau selon la puissance.
-- La **gestion clim** allume, règle et éteint la clim réversible selon la puissance de la zone.
+4. [Comment ça calcule](#comment-ça-calcule)
+5. [Exemples](#exemples)
+6. [Dépannage](#dépannage)
+7. [Sécurité et limites](#sécurité-et-limites)
+8. [Historique des versions](#historique-des-versions)
+9. [Crédits et licence](#crédits-et-licence)
 
 ---
 
@@ -121,9 +101,9 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 | Limiter les cycles marche/arrêt | Une fois en chauffe, la zone ne s'arrête que sous 1 % au lieu de la puissance minimale. |
 | Auto-apprentissage | La zone ajuste seule ses coefficients. À désactiver pour les figer. |
 | Seuil « cycle précédent chaud » et Réduction après un cycle chaud | Compensent l'inertie d'un radiateur encore chaud : le cycle suivant est réduit. 0 = désactivé. |
-| Marges de détection de défaillance | Si la température reste trop loin de la consigne et dans le mauvais sens pendant 2 cycles, statut « défaillance chauffage / clim ». |
+| Marge de détection de défaillance | Si la zone chauffe (ou refroidit) mais que la température reste à plus de cette marge de la consigne et continue de s'en éloigner, 2 cycles de suite : statut « défaillance chauffage / clim ». |
 
-**Configurer → Fenêtres** : capteurs d'ouverture, délai avant arrêt (2 min) et délai avant reprise (2 min).
+**Configurer → Fenêtres** : capteurs d'ouverture, délai avant suspension (2 min) et délai avant reprise (2 min).
 
 **Entités créées**
 
@@ -158,24 +138,28 @@ Dans **Configurer → Vannes thermostatiques**, une zone peut piloter les vannes
 | Position réelle des vannes | Facultatif : un capteur par vanne (par exemple `…_valve_position`), **dans le même ordre que les vannes**. Sert à comparer la position réelle à la consigne envoyée. |
 | Alerte « vanne qui ne suit pas » après | Durée en minutes (30 par défaut, 0 = pas d'alerte). L'écart déclenchant est fixe : plus de **10 %** entre la consigne et la position réelle. |
 | Demande suivie | **Champ libre** : n'importe quelle entité 0-100 % dont la valeur pilote l'ouverture (« Puissance chaudière » ou « Puissance de chauffe » de la zone, une fraction chaudière, une entité à toi…). **Vide = la puissance chaudière de la zone** (recommandé : c'est la part de chaleur que fournissent les radiateurs). |
-| Ouverture à 1 % de demande | Par exemple 15 %. |
-| Ouverture à 100 % de demande | Par exemple 70 %. Entre les deux, l'ouverture varie linéairement. |
+| Ouverture proportionnelle | **Activée** : l'ouverture suit la demande dans la plage minimale – maximale. **Désactivée** : la vanne s'ouvre à l'ouverture fixe dès que la zone demande de la chaleur (le thermostat de la zone règle déjà la puissance, la vanne n'a plus qu'à laisser passer l'eau). |
+| Ouverture minimale (à 1 % de demande) | Par exemple 15 %. C'est aussi l'ouverture à demande nulle avec « Ne jamais fermer complètement ». |
+| Ouverture maximale (à 100 % de demande) | Par exemple 70 %. Entre les deux, l'ouverture varie linéairement. Mode proportionnel seulement. |
+| Ouverture fixe (sans proportionnel) | Mode non proportionnel : ouverture dès qu'il y a de la demande. **Vide = 100 %.** |
 | Écart minimal avant de changer l'ouverture | La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (5 % par défaut). La fermeture complète est toujours appliquée. |
-| Ne jamais fermer complètement | Quand la demande est à 0, la vanne passe à l'ouverture minimale (la valeur « à 1 % ») au lieu de se fermer. Prioritaire sur « Garder ouvert ». |
+| Ne jamais fermer complètement | Quand la demande est à 0, la vanne passe à l'ouverture minimale au lieu de se fermer. Prioritaire sur « Garder ouvert ». |
 | Garder ouvert tant qu'aucune autre zone ne demande | Voir ci-dessous (activé par défaut). |
 
-**Plage d'ouverture.** La valeur de la demande est ramenée à la plage réglée : avec 15 % à 1 % et 70 % à 100 %, une demande de 1 % ouvre à 15 %, 50 % à environ 43 %, 100 % à 70 %. Mettre 0 et 100 aux deux extrémités fait suivre la valeur de l'entité telle quelle ; la même valeur aux deux extrémités donne un fonctionnement ouvert / fermé. Si l'entité choisie est indisponible, rien n'est envoyé.
+**Ouverture proportionnelle activée.** La demande est ramenée à la plage réglée : avec 15 % à 1 % et 70 % à 100 %, une demande de 1 % ouvre à 15 %, 50 % à environ 43 %, 100 % à 70 %. Mettre 0 et 100 aux deux extrémités fait suivre la valeur de l'entité telle quelle. Si l'entité choisie est indisponible, rien n'est envoyé.
 
-**Quand la demande tombe à 0**, dans cet ordre de priorité :
+**Ouverture proportionnelle désactivée.** Dès que la demande est positive, la vanne s'ouvre à l'ouverture fixe (100 % si le champ est vide) : c'est la zone qui règle la puissance, pas la vanne.
+
+**Quand la demande tombe à 0**, dans cet ordre de priorité (valable dans les deux modes) :
 1. *Ne jamais fermer complètement* activé : la vanne passe à l'ouverture minimale.
 2. Sinon, avec *Garder ouvert* (par défaut) : la vanne reste à son ouverture actuelle tant qu'aucune autre zone ne demande de chaudière, car circulateur et brûleur sont alors à l'arrêt et fermer pour rouvrir plus tard ne sert à rien. Dès qu'une autre zone demande de la chaudière, la vanne se ferme.
 3. Sinon : fermeture immédiate.
 
-Dans tous les cas : rien n'est envoyé en froid, en été (entité « saison » ON), ni quand l'écart avec l'ouverture actuelle est inférieur à l'écart minimal, ce qui épargne les piles. Les vannes sont recalculées à chaque cycle de la zone, à chaque changement de demande d'une zone et à chaque changement de l'entité suivie. Le capteur **Ouverture des vannes** de la zone affiche l'ouverture voulue, avec en attributs la source, la demande des autres zones, l'état des vannes et, si les positions réelles sont renseignées, la consigne, la position et l'écart de chaque vanne.
+Dans tous les cas : rien n'est envoyé en froid, en été (entité « saison » ON), ni quand l'écart avec l'ouverture actuelle est inférieur à l'écart minimal, ce qui épargne les piles. Les vannes sont recalculées à chaque cycle de la zone, à chaque changement de demande d'une zone et à chaque changement de l'entité suivie. Le capteur **Ouverture des vannes** de la zone affiche l'ouverture voulue, avec en attributs la source, le mode proportionnel ou non, la demande des autres zones, l'état des vannes et, si les positions réelles sont renseignées, la consigne, la position et l'écart de chaque vanne.
 
 **Suivi de la position réelle.** Si tu renseignes les positions réelles, l'intégration compare pour chaque vanne la position à la consigne envoyée. Quand l'écart dépasse 10 % pendant plus que le délai réglé, l'indicateur **Vanne qui ne suit pas** de la zone s'active (attribut `valves_in_alert` : les vannes concernées, avec position, consigne et écart) et un avertissement est écrit dans les journaux. Le délai repart de zéro à chaque nouvel ordre, et rien n'est évalué en froid, en été, ni quand la position est indisponible. L'indicateur est séparé de « Défaillance » (régulation) : branche une automatisation dessus pour être notifié (pile faible, vanne bloquée…). La position réelle n'est qu'un témoin : l'intégration continue de comparer l'ouverture voulue à la consigne de la vanne, pour ne pas renvoyer un ordre qu'une vanne ne peut pas suivre.
 
-> Les zones configurées avant la version 0.8 gardent leur ancien fonctionnement (proportionnel, fraction ou entité personnalisée) jusqu'à ce que l'onglet *Vannes thermostatiques* soit enregistré.
+> Les zones configurées avec l'ancien pilotage des vannes (proportionnel, fraction ou entité personnalisée) sont **migrées automatiquement** au démarrage vers ce champ libre, en conservant leur comportement.
 
 > Conseils : pour une vanne sans pièce dédiée, rattache-la à la zone voisine ou crée une zone avec la température de la vanne comme sonde (les sondes intégrées aux vannes mesurent souvent trop chaud près du radiateur). Si la pompe est à vitesse fixe, garder un by-pass hydraulique quand presque toutes les vannes sont fermées.
 
@@ -222,7 +206,7 @@ Une seule entrée.
 | Sonde de température d'eau | Température de la chaudière. |
 | Sources de puissance | Entités numériques additionnées et plafonnées à 100 % : en général les capteurs « Puissance chaudière » des zones. Tu peux en ajouter d'autres à la main. |
 
-**Configurer → Temporisations et sécurité** : post-circulation (0 min), durée mini brûleur allumé (2 min) et éteint (2 min), température de sécurité (85 °C), âge max de la sonde d'eau (10 min).
+**Configurer → Temporisations et sécurité** : post-circulation du circulateur (0 min), durée mini brûleur allumé (2 min) et éteint (2 min), température de sécurité (85 °C), âge max de la sonde d'eau (10 min).
 
 **Entités** : Demande totale, Seuil bas eau, Seuil haut eau, Statut (`disabled`, `idle`, `circulating`, `heating`, `water_sensor_failure`, `safety_cutoff`), Brûleur, Circulateur, interrupteurs **Gestion active** et **Simulation**, et trois réglages :
 
@@ -383,6 +367,7 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
+| 0.10.0 | Vannes : interrupteur « ouverture proportionnelle » (désactivé = ouverture fixe, 100 % par défaut) ; ancienne configuration migrée automatiquement. Nettoyage : une seule marge de détection de défaillance, suppression des réglages de bascule devenus inutiles, schéma du README. |
 | 0.9.0 | Vannes : position réelle (capteur par vanne), affichage consigne / position / écart, indicateur « Vanne qui ne suit pas » (écart fixe de 10 %, délai réglable). |
 | 0.8.0 | Vannes : un champ libre « demande suivie » remplace les listes « pilotage » et « demande suivie », interrupteur « ne jamais fermer complètement » (ouverture minimale). |
 | 0.7.1 | Explications ajoutées sous les champs qui n'en avaient pas. |

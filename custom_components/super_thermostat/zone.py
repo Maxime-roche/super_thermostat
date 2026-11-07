@@ -24,7 +24,8 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, CONF_ALLOWED, CONF_AUTOLEARN, CONF_CYCLE,
-    CONF_FAIL_OFFSET, CONF_FAILSAFE_POWER, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES,
+    CONF_FAIL_OFFSET, CONF_FAILSAFE_POWER, CONF_NOTIFY_MESSAGE, CONF_NOTIFY_SERVICE,
+    CONF_STOVE, CONF_STOVE_DELAY, CONF_STOVE_THRESHOLD, CONF_VALVE_RETRY, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES,
     CONF_MAX_SENSOR_AGE, CONF_MIN_POWER, CONF_OFFSET_NEXT_FULL, CONF_OUTDOOR_ENTITY,
     CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVE_ALERT_MINUTES, CONF_VALVE_KEEP_OPEN,
     CONF_VALVE_LEVEL, CONF_VALVE_MIN_STEP, CONF_VALVE_NEVER_CLOSE, CONF_VALVE_OPEN_MAX,
@@ -33,12 +34,13 @@ from .const import (
     CONF_ZONE_SEASON, COOL_OFF, DEFAULT_TARGET_COOL, DEFAULT_TARGET_HEAT,
     DEFAULT_ZONE_OPTIONS, DOMAIN, FIXED_PRESETS, PRESET_ALIASES, PRESET_DEFAULTS,
     STORAGE_VERSION, VALVE_ALERT_GAP, Z_ACTUATOR_FAILURE, Z_COOLING, Z_HEATING, Z_IDLE,
-    Z_OFF, Z_SENSOR_FAILURE, Z_SUSPENDED,
+    Z_OFF, Z_SENSOR_FAILURE, Z_STOVE, Z_SUSPENDED,
 )
 from .engine import (
     COOL, HEAT, MANUAL_CONFIDENCE, ZoneParams, ZoneState, resolve_sense, run_cycle,
 )
 from .helpers import parse_preset_names, read_number
+from .notify import FailureNotifier
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +86,12 @@ class ZoneController:
         self.sensor_failure = False
         self.valve_target: int | None = None
         self.valve_alert = False
+        self.stove_low = False  # poêle allumé et température sous le seuil depuis assez longtemps
+        self._stove_low_since: float | None = None
+        self._valve_orders: dict[str, tuple[int, float]] = {}  # dernier ordre envoyé à chaque vanne
+        self._notifier = FailureNotifier(
+            hass, entry.title, self.cfg.get(CONF_NOTIFY_SERVICE), self.cfg.get(CONF_NOTIFY_MESSAGE)
+        )
         self.valve_report: dict[str, dict[str, Any]] = {}
         self._drift: dict[str, dict[str, Any]] = {}
 
@@ -231,9 +239,12 @@ class ZoneController:
                     self.hass, [e for pair in pairs for e in pair], self._on_valve_event
                 )
             )
+        if self.cfg.get(CONF_STOVE):
             self._unsubs.append(
-                async_track_time_interval(self.hass, self._check_valves, timedelta(minutes=1))
+                async_track_state_change_event(self.hass, [self.cfg[CONF_STOVE]], self._on_stove_event)
             )
+        # une vérification par minute : vannes (ordres à renvoyer), position réelle, poêle, notifications
+        self._unsubs.append(async_track_time_interval(self.hass, self._tick, timedelta(minutes=1)))
         if self.cfg.get(CONF_ZONE_SEASON):
             self._unsubs.append(
                 async_track_state_change_event(
@@ -248,6 +259,52 @@ class ZoneController:
     def _on_fraction_event(self, _event: Event) -> None:
         self._refresh_valves()
         self._notify()
+
+    @callback
+    def _tick(self, _now: Any = None) -> None:
+        self._check_stove()
+        self._check_valves()
+        self._drive_valves()
+        self._update_failures()
+
+    # ---- poêle à bois ----
+    def _stove_on(self) -> bool:
+        entity = self.cfg.get(CONF_STOVE)
+        return bool(entity) and self.hass.states.is_state(entity, "on")
+
+    @callback
+    def _on_stove_event(self, _event: Event) -> None:
+        self._check_stove()
+        self._recalc_now()  # pause ou reprise de la zone, vannes
+
+    @callback
+    def _check_stove(self, _now: Any = None) -> None:
+        """Poêle allumé : la zone est en pause. Sous le seuil depuis assez longtemps : on anticipe."""
+        if not self.cfg.get(CONF_STOVE):
+            return
+        now = time.time()
+        temp = self.current_temperature
+        if self._stove_on() and temp is not None and temp < float(self.cfg.get(CONF_STOVE_THRESHOLD, 21)):
+            if self._stove_low_since is None:
+                self._stove_low_since = now
+        else:
+            self._stove_low_since = None
+        delay = float(self.cfg.get(CONF_STOVE_DELAY, 10)) * 60
+        low = self._stove_low_since is not None and now - self._stove_low_since >= delay
+        if low != self.stove_low:
+            self.stove_low = low
+            self._drive_valves()  # on ouvre déjà les vannes (ou on les referme) sans relancer le thermostat
+            self._notify()
+
+    # ---- notifications de défaillance ----
+    @callback
+    def _update_failures(self) -> None:
+        valves = [v for v, item in self.valve_report.items() if item.get("alert")]
+        self._notifier.update({
+            "sensor": (self.sensor_failure, "sonde de température absente ou périmée"),
+            "actuator": (self.state.actuator_failure, "le chauffage ne chauffe pas (la température s'éloigne de la consigne)"),
+            "valve": (self.valve_alert, "vanne(s) qui ne suivent pas leur consigne : " + ", ".join(valves)),
+        })
 
     @callback
     def _on_season_event(self, _event: Event) -> None:
@@ -289,6 +346,7 @@ class ZoneController:
     def _apply(self, status: str, heat: int = 0, cool: int = 0) -> None:
         self.status, self.power_heat, self.power_cool = status, heat, cool
         self._refresh_valves()
+        self._update_failures()
         self._save()
         self._notify()
 
@@ -315,6 +373,15 @@ class ZoneController:
         tant qu'aucune autre zone ne demande, sinon fermeture.
         """
         low = float(self.cfg.get(CONF_VALVE_OPEN_MIN, 15))
+        if self._stove_on():
+            # poêle allumé : vannes à 0 % sans aucune contrainte (ni « jamais fermer », ni « garder ouvert »),
+            # sauf anticipation (température basse) : on les ouvre déjà, le thermostat reste en pause
+            if not self.stove_low:
+                return 0
+            if not self.cfg.get(CONF_VALVE_PROPORTIONAL, True):
+                level = self.cfg.get(CONF_VALVE_LEVEL)
+                return int(round(100 if level in (None, "") else float(level)))
+            return int(round(float(self.cfg.get(CONF_VALVE_OPEN_MAX, 70))))
         if self.hvac_mode == "off":
             demand: float | None = 0.0
         else:
@@ -414,6 +481,8 @@ class ZoneController:
         if value is None:
             return
         step = float(self.cfg.get(CONF_VALVE_MIN_STEP, 5))
+        retry = float(self.cfg.get(CONF_VALVE_RETRY, 30)) * 60
+        now = time.time()
         for entity in valves:
             state = self.hass.states.get(entity)
             if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
@@ -421,9 +490,14 @@ class ZoneController:
             try:
                 diff = abs(round(float(state.state)) - value)
                 if diff == 0 or (diff < step and value != 0):
+                    self._valve_orders.pop(entity, None)  # la vanne a suivi : rien à renvoyer
                     continue
             except ValueError:
                 pass
+            sent = self._valve_orders.get(entity)
+            if sent and sent[0] == value and now - sent[1] < retry:
+                continue  # ordre déjà envoyé : certaines vannes mettent ~30 min à répondre
+            self._valve_orders[entity] = (value, now)
             domain = entity.split(".", 1)[0]  # number ou input_number
             self.hass.async_create_task(
                 self.hass.services.async_call(
@@ -439,6 +513,12 @@ class ZoneController:
             self.state.interrupt()
             self.sense = None
             self._apply(Z_OFF)
+            return
+        if self._stove_on():
+            # poêle allumé : zone en pause (mode et préréglage conservés, rien n'est appris)
+            self.state.interrupt()
+            self.sense = None
+            self._apply(Z_STOVE)
             return
         if self.suspended:
             self.state.interrupt()

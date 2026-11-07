@@ -17,12 +17,14 @@ from homeassistant.helpers.storage import Store
 from .boiler_logic import burner_target, circulator_target, total_demand, water_band
 from .const import (
     B_CIRCULATING, B_DISABLED, B_HEATING, B_IDLE, B_SAFETY, B_WATER_FAILURE,
-    CONF_BURNER, CONF_CIRCULATOR, CONF_MIN_OFF, CONF_MIN_ON, CONF_POST_RUN,
+    CONF_BURNER, CONF_CIRCULATOR, CONF_MIN_OFF, CONF_MIN_ON, CONF_NOTIFY_MESSAGE,
+    CONF_NOTIFY_SERVICE, CONF_POST_RUN,
     CONF_SAFETY_MAX, CONF_SOURCES, CONF_WATER_MAX_AGE, CONF_WATER_TEMP,
     DEFAULT_BOILER_OPTIONS, DEFAULT_OFFSET, DEFAULT_T_MAX, DEFAULT_T_MIN, DOMAIN,
     STORAGE_VERSION,
 )
 from .helpers import read_number
+from .notify import FailureNotifier
 
 _LOGGER = logging.getLogger(__name__)
 TICK = timedelta(seconds=30)
@@ -55,6 +57,9 @@ class BoilerController:
         self._circ_cmd = False
         self._zero_since: float | None = None
 
+        self._notifier = FailureNotifier(
+            hass, entry.title, self.cfg.get(CONF_NOTIFY_SERVICE), self.cfg.get(CONF_NOTIFY_MESSAGE)
+        )
         self._store: Store = Store(hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}")
         self._listeners: list[Callable[[], None]] = []
         self._unsubs: list[CALLBACK_TYPE] = []
@@ -208,6 +213,10 @@ class BoilerController:
             self.status = B_CIRCULATING
         else:
             self.status = B_IDLE
+        self._notifier.update({
+            "water": (self.status == B_WATER_FAILURE, "sonde d'eau de la chaudière absente ou périmée"),
+            "safety": (self.status == B_SAFETY, "température d'eau de sécurité atteinte : brûleur coupé"),
+        })
         self._notify()
 
     # ------------------------------------------------------------ commandes UI

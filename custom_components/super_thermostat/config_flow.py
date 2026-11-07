@@ -15,15 +15,16 @@ from .const import (
     CONF_CLIMATE, CONF_COOL_SOURCES, CONF_CYCLE, CONF_FAILSAFE_POWER, CONF_FAIL_OFFSET,
     CONF_FALLBACK_TEMP, CONF_FRACTION_ENTITY, CONF_FRACTION_SOURCE, CONF_LIMIT_CYCLES,
     CONF_MAX_SENSOR_AGE, CONF_MIN_FRACTION, CONF_MIN_OFF, CONF_MIN_ON, CONF_MIN_POWER,
-    CONF_MODE_DELAY, CONF_NAME, CONF_OFFSET_NEXT_FULL, CONF_OUTDOOR_ENTITY, CONF_POST_RUN,
-    CONF_SAFETY_MAX, CONF_SEUIL_BAS, CONF_SEUIL_HAUT, CONF_SOURCES, CONF_START_DELAY,
+    CONF_MODE_DELAY, CONF_NAME, CONF_NOTIFY_MESSAGE, CONF_NOTIFY_SERVICE, CONF_OFFSET_NEXT_FULL,
+    CONF_OUTDOOR_ENTITY, CONF_POST_RUN, CONF_SAFETY_MAX, CONF_SEUIL_BAS, CONF_SEUIL_HAUT,
+    CONF_SOURCES, CONF_START_DELAY, CONF_STOVE, CONF_STOVE_DELAY, CONF_STOVE_THRESHOLD,
     CONF_SUMMER, CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_TYPE, CONF_VALVES,
     CONF_VALVE_ALERT_MINUTES, CONF_VALVE_KEEP_OPEN, CONF_VALVE_LEVEL, CONF_VALVE_MIN_STEP,
     CONF_VALVE_NEVER_CLOSE, CONF_VALVE_OPEN_MAX, CONF_VALVE_OPEN_MIN, CONF_VALVE_POSITIONS,
-    CONF_VALVE_PROPORTIONAL, CONF_VALVE_SOURCE, CONF_WATER_MAX_AGE, CONF_WATER_TEMP,
-    CONF_WINDOWS, CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY, CONF_ZONE_SEASON,
-    DEFAULT_AC_OPTIONS, DEFAULT_BOILER_OPTIONS, DEFAULT_FRACTION_OPTIONS, DEFAULT_ZONE_OPTIONS,
-    DOMAIN, TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE,
+    CONF_VALVE_PROPORTIONAL, CONF_VALVE_RETRY, CONF_VALVE_SOURCE, CONF_WATER_MAX_AGE,
+    CONF_WATER_TEMP, CONF_WINDOWS, CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY,
+    CONF_ZONE_SEASON, DEFAULT_AC_OPTIONS, DEFAULT_BOILER_OPTIONS, DEFAULT_FRACTION_OPTIONS,
+    DEFAULT_ZONE_OPTIONS, DOMAIN, TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE,
 )
 
 
@@ -96,10 +97,39 @@ ZONE_VALVES = vol.Schema(
         vol.Required(CONF_VALVE_OPEN_MAX): _num(0, 100, 1, "%"),
         vol.Optional(CONF_VALVE_LEVEL): _num(5, 100, 5, "%"),
         vol.Required(CONF_VALVE_MIN_STEP): _num(0, 50, 1, "%"),
+        vol.Required(CONF_VALVE_RETRY): _num(5, 240, 5, "min"),
         vol.Required(CONF_VALVE_NEVER_CLOSE): sel.BooleanSelector(),
         vol.Required(CONF_VALVE_KEEP_OPEN): sel.BooleanSelector(),
     }
 )
+ZONE_STOVE = vol.Schema(
+    {
+        vol.Optional(CONF_STOVE): sel.EntitySelector(
+            sel.EntitySelectorConfig(domain=["input_boolean", "switch", "binary_sensor"])
+        ),
+        vol.Required(CONF_STOVE_THRESHOLD): _num(5, 30, 0.5, "°C"),
+        vol.Required(CONF_STOVE_DELAY): _num(0, 180, 1, "min"),
+    }
+)
+
+
+def _notify_schema(hass) -> vol.Schema:
+    """Choix du service de notification parmi ceux qui existent (saisie libre possible) + message."""
+    try:
+        services = hass.services.async_services_for_domain("notify")
+    except AttributeError:  # anciennes versions
+        services = hass.services.async_services().get("notify", {})
+    options = [{"value": f"notify.{name}", "label": name} for name in sorted(services)]
+    return vol.Schema(
+        {
+            vol.Optional(CONF_NOTIFY_SERVICE): sel.SelectSelector(
+                sel.SelectSelectorConfig(options=options, custom_value=True, mode=sel.SelectSelectorMode.DROPDOWN)
+            ),
+            vol.Optional(CONF_NOTIFY_MESSAGE): sel.TextSelector(sel.TextSelectorConfig(multiline=False)),
+        }
+    )
+
+
 ZONE_REGULATION = vol.Schema(
     {
         vol.Required(CONF_MIN_POWER): _num(0, 50, 1, "%"),
@@ -167,6 +197,7 @@ AC_TUNING = vol.Schema(
 )
 CLEARABLE = {
     CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_SOURCE: "", CONF_VALVE_POSITIONS: [], CONF_VALVE_LEVEL: "",
+    CONF_STOVE: "", CONF_NOTIFY_SERVICE: "", CONF_NOTIFY_MESSAGE: "",
     CONF_AC_FRACTION: "", CONF_SUMMER: "", CONF_ZONE_SEASON: "", CONF_COOL_SOURCES: [],
 }
 
@@ -280,9 +311,9 @@ class SuperThermostatOptionsFlow(OptionsFlow):
             self._opts = dict(self.config_entry.options)
         kind = self.config_entry.data[CONF_TYPE]
         if kind == TYPE_ZONE:
-            menu = ["zone_sensors", "valves", "regulation", "windows", "save"]
+            menu = ["zone_sensors", "valves", "stove", "regulation", "windows", "notifications", "save"]
         elif kind == TYPE_BOILER:
-            menu = ["boiler_sensors", "tuning", "save"]
+            menu = ["boiler_sensors", "tuning", "notifications", "save"]
         elif kind == TYPE_AC:
             menu = ["ac_entities", "ac_tuning", "save"]
         else:
@@ -294,6 +325,12 @@ class SuperThermostatOptionsFlow(OptionsFlow):
 
     async def async_step_valves(self, user_input=None) -> ConfigFlowResult:
         return await self._form("valves", ZONE_VALVES, user_input)
+
+    async def async_step_stove(self, user_input=None) -> ConfigFlowResult:
+        return await self._form("stove", ZONE_STOVE, user_input)
+
+    async def async_step_notifications(self, user_input=None) -> ConfigFlowResult:
+        return await self._form("notifications", _notify_schema(self.hass), user_input)
 
     async def async_step_regulation(self, user_input=None) -> ConfigFlowResult:
         return await self._form("regulation", ZONE_REGULATION, user_input)

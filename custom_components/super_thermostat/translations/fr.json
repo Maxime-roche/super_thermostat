@@ -90,6 +90,8 @@
         "menu_options": {
           "zone_sensors": "Sondes, type et cycle",
           "valves": "Vannes thermostatiques",
+          "stove": "Poêle à bois",
+          "notifications": "Notifications de défaillance",
           "regulation": "Régulation",
           "windows": "Ouvrants",
           "boiler_sensors": "Relais, sondes et sources",
@@ -129,6 +131,7 @@
         "data": {
           "valve_entities": "Vannes (entités d'ouverture)",
           "valve_position_entities": "Position réelle des vannes (même ordre que les vannes)",
+          "valve_retry_minutes": "Délai avant de renvoyer un ordre à une vanne",
           "valve_alert_minutes": "Alerte « vanne qui ne suit pas » après",
           "valve_source": "Demande suivie (entité 0-100 %)",
           "valve_proportional": "Ouverture proportionnelle",
@@ -142,6 +145,7 @@
         "data_description": {
           "valve_entities": "Entités number d'ouverture (ex. …_valve_setpoint). Rien n'est envoyé en froid ni en été.",
           "valve_position_entities": "Facultatif : un capteur par vanne (ex. …_valve_position), dans le même ordre que les vannes ci-dessus. Sert à comparer la position réelle à la consigne envoyée.",
+          "valve_retry_minutes": "Après un ordre, certaines vannes sur pile mettent jusqu'à ~30 min à répondre : le même ordre n'est pas renvoyé avant ce délai, puis il l'est si la vanne n'a pas suivi. Un ordre différent est envoyé tout de suite.",
           "valve_alert_minutes": "Si la position réelle s'écarte de plus de 10 % de la consigne pendant cette durée, l'indicateur « Vanne qui ne suit pas » s'active. 0 = pas d'alerte. Le délai repart de zéro à chaque nouvel ordre.",
           "valve_source": "Entité dont la valeur (0-100 %) pilote l'ouverture : « Puissance chaudière » ou « Puissance de chauffe » de la zone, la fraction chaudière, ou toute entité de ton choix. Vide = puissance chaudière de la zone.",
           "valve_proportional": "Activé : l'ouverture suit la demande entre l'ouverture minimale et maximale. Désactivé : la vanne s'ouvre à l'ouverture fixe dès que la zone demande de la chaleur (le thermostat de la zone règle déjà la puissance).",
@@ -151,6 +155,30 @@
           "valve_min_step": "La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (la fermeture complète est toujours appliquée).",
           "valve_never_close": "Quand la demande est à 0, la vanne passe à l'ouverture minimale au lieu de se fermer. Prioritaire sur « garder ouvert ».",
           "valve_keep_open": "Quand la demande tombe à 0, la vanne reste telle quelle sauf si une autre zone demande de la chaudière : elle se ferme alors. Désactivé : fermeture immédiate."
+        }
+      },
+      "stove": {
+        "title": "Poêle à bois",
+        "data": {
+          "stove_entity": "Poêle à bois allumé (interrupteur)",
+          "stove_threshold": "Seuil d'anticipation",
+          "stove_delay": "Durée sous le seuil avant d'anticiper"
+        },
+        "data_description": {
+          "stove_entity": "Interrupteur (input_boolean…) activé quand le poêle à bois est allumé. La zone se met alors en pause (mode, préréglage et apprentissage conservés) et les vannes se ferment à 0 %, sans aucune contrainte. À la désactivation, la zone reprend seule.",
+          "stove_threshold": "Poêle allumé et température de la pièce sous ce seuil : l'intégration anticipe, les vannes s'ouvrent déjà, sans relancer le thermostat.",
+          "stove_delay": "Durée sous le seuil avant d'anticiper. L'indicateur « Poêle à bois : anticipation » s'active alors (pratique pour t'envoyer une notification)."
+        }
+      },
+      "notifications": {
+        "title": "Notifications de défaillance",
+        "data": {
+          "notify_service": "Service de notification",
+          "notify_message": "Message en cas de défaillance"
+        },
+        "data_description": {
+          "notify_service": "Service de notification à utiliser (par exemple notify.mobile_app_telephone). Vide = aucune notification. La liste propose les services existants, tu peux aussi saisir le nom.",
+          "notify_message": "Message envoyé à chaque nouvelle défaillance. Variables : $nom (nom de l'entrée) et $cause (cause). Vide = « $nom : $cause »."
         }
       },
       "regulation": {
@@ -316,6 +344,7 @@
           "idle": "Au repos",
           "off": "Arrêtée",
           "suspended": "Suspendue (ouvrant)",
+          "stove": "Poêle à bois (zone en pause)",
           "sensor_failure": "Défaillance sonde",
           "actuator_failure": "Défaillance chauffage"
         }
@@ -347,6 +376,9 @@
       },
       "valve_problem": {
         "name": "Vanne qui ne suit pas"
+      },
+      "stove_anticipation": {
+        "name": "Poêle à bois : anticipation"
       },
       "burner": {
         "name": "Brûleur"

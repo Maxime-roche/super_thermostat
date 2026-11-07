@@ -7,8 +7,9 @@
 <text x="108.0" y="110" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Températures</text>
 <text x="108.0" y="138" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">pièce et extérieure</text>
 <rect x="222" y="82" width="196" height="96" rx="10" fill="#E1EEFB" stroke="#3B78B8" stroke-width="2"/>
-<text x="320.0" y="110" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Fenêtres, saison</text>
-<text x="320.0" y="138" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">ouvertes ? été ?</text>
+<text x="320.0" y="110" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Événements</text>
+<text x="320.0" y="138" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">fenêtre ouverte,</text>
+<text x="320.0" y="160.0" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">saison, poêle allumé</text>
 <rect x="434" y="82" width="196" height="96" rx="10" fill="#E1EEFB" stroke="#3B78B8" stroke-width="2"/>
 <text x="532.0" y="110" font-size="17" font-weight="bold" fill="#1b1b1b" text-anchor="middle">Fraction chaudière</text>
 <text x="532.0" y="138" font-size="15" font-weight="normal" fill="#1b1b1b" text-anchor="middle">0 % : il fait doux</text>

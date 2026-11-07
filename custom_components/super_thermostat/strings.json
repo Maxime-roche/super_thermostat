@@ -90,6 +90,8 @@
         "menu_options": {
           "zone_sensors": "Sensors, type and cycle",
           "valves": "Thermostatic valves",
+          "stove": "Wood stove",
+          "notifications": "Failure notifications",
           "regulation": "Regulation",
           "windows": "Openings",
           "boiler_sensors": "Relays, sensors and sources",
@@ -129,6 +131,7 @@
         "data": {
           "valve_entities": "Valves (opening entities)",
           "valve_position_entities": "Real valve positions (same order as the valves)",
+          "valve_retry_minutes": "Delay before resending an order to a valve",
           "valve_alert_minutes": "'Valve not following' alert after",
           "valve_source": "Demand followed (0-100 % entity)",
           "valve_proportional": "Proportional opening",
@@ -142,6 +145,7 @@
         "data_description": {
           "valve_entities": "Opening number entities (e.g. …_valve_setpoint). Nothing is sent when cooling or in summer.",
           "valve_position_entities": "Optional: one sensor per valve (e.g. …_valve_position), in the same order as the valves above. Used to compare the real position with the setpoint sent.",
+          "valve_retry_minutes": "After an order some battery valves take up to ~30 min to respond: the same order is not resent before this delay, then it is if the valve has not followed. A different order is sent right away.",
           "valve_alert_minutes": "If the real position stays more than 10 % away from the setpoint for this long, the 'Valve not following' indicator turns on. 0 = no alert. The delay restarts at each new order.",
           "valve_source": "Entity whose value (0-100 %) drives the opening: the zone's boiler or heating power, the boiler fraction, or any entity you like. Empty = the zone's boiler power.",
           "valve_proportional": "On: the opening follows demand between the minimum and maximum openings. Off: the valve opens to the fixed opening as soon as the zone calls for heat (the zone's thermostat already modulates power).",
@@ -151,6 +155,30 @@
           "valve_min_step": "The valve is only changed when the wanted opening differs from the current one by at least this percentage (full closing is always applied).",
           "valve_never_close": "When demand is 0 the valve goes to the minimum opening instead of closing. Takes priority over 'keep open'.",
           "valve_keep_open": "When demand drops to 0 the valve stays as is unless another zone calls for boiler heat, then it closes. Off: closes immediately."
+        }
+      },
+      "stove": {
+        "title": "Wood stove",
+        "data": {
+          "stove_entity": "Wood stove lit (switch)",
+          "stove_threshold": "Anticipation threshold",
+          "stove_delay": "Time below the threshold before anticipating"
+        },
+        "data_description": {
+          "stove_entity": "Switch (input_boolean…) turned on when the wood stove is lit. The zone then pauses (mode, preset and learning kept) and the valves close to 0 % with no constraint. When it turns off the zone resumes by itself.",
+          "stove_threshold": "Stove on and room temperature below this threshold: the integration anticipates, the valves open already without restarting the thermostat.",
+          "stove_delay": "Time below the threshold before anticipating. The 'Wood stove: anticipation' indicator then turns on (handy to send yourself a notification)."
+        }
+      },
+      "notifications": {
+        "title": "Failure notifications",
+        "data": {
+          "notify_service": "Notification service",
+          "notify_message": "Failure message"
+        },
+        "data_description": {
+          "notify_service": "Notification service to use (e.g. notify.mobile_app_phone). Empty = no notification. The list offers existing services; you can also type the name.",
+          "notify_message": "Message sent at each new failure. Variables: $nom (entry name) and $cause (cause). Empty = '$nom : $cause'."
         }
       },
       "regulation": {
@@ -316,6 +344,7 @@
           "idle": "Idle",
           "off": "Off",
           "suspended": "Suspended (opening)",
+          "stove": "Wood stove (zone paused)",
           "sensor_failure": "Sensor failure",
           "actuator_failure": "Heating failure"
         }
@@ -347,6 +376,9 @@
       },
       "valve_problem": {
         "name": "Valve not following"
+      },
+      "stove_anticipation": {
+        "name": "Wood stove: anticipation"
       },
       "burner": {
         "name": "Burner"

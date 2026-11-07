@@ -40,6 +40,12 @@ ALLOWED_HEAT = "heat"
 ALLOWED_COOL = "cool"
 ALLOWED_ALL = "all"
 
+CONF_STOVE = "stove_entity"                 # interrupteur « poêle à bois allumé »
+CONF_STOVE_THRESHOLD = "stove_threshold"    # sous cette température (poêle allumé) : on anticipe
+CONF_STOVE_DELAY = "stove_delay"            # durée sous le seuil avant d'anticiper (min)
+CONF_NOTIFY_SERVICE = "notify_service"      # service de notification (ex. notify.mobile_app_telephone)
+CONF_NOTIFY_MESSAGE = "notify_message"      # message ($nom = nom, $cause = cause)
+CONF_VALVE_RETRY = "valve_retry_minutes"    # délai avant de renvoyer un ordre identique à une vanne
 CONF_VALVE_POSITIONS = "valve_position_entities"  # position réelle de chaque vanne (même ordre que les vannes)
 CONF_VALVE_ALERT_MINUTES = "valve_alert_minutes"    # 0 = alerte désactivée
 VALVE_ALERT_GAP = 10  # écart fixe (%) entre consigne et position réelle avant de compter une dérive
@@ -68,6 +74,10 @@ DEFAULT_ZONE_OPTIONS = {
     CONF_VALVE_KEEP_OPEN: True,
     CONF_VALVE_NEVER_CLOSE: False,
     CONF_VALVE_ALERT_MINUTES: 30,
+    CONF_VALVE_RETRY: 30,
+    CONF_STOVE_THRESHOLD: 21,
+    CONF_STOVE_DELAY: 10,
+    CONF_NOTIFY_MESSAGE: "",
     CONF_WINDOW_STOP_DELAY: 2,
     CONF_WINDOW_RESTART_DELAY: 2,
 }
@@ -78,10 +88,11 @@ Z_COOLING = "cooling"
 Z_IDLE = "idle"
 Z_OFF = "off"
 Z_SUSPENDED = "suspended"
+Z_STOVE = "stove"
 Z_SENSOR_FAILURE = "sensor_failure"
 Z_ACTUATOR_FAILURE = "actuator_failure"
 ZONE_STATUSES = [
-    Z_HEATING, Z_COOLING, Z_IDLE, Z_OFF, Z_SUSPENDED,
+    Z_HEATING, Z_COOLING, Z_IDLE, Z_OFF, Z_SUSPENDED, Z_STOVE,
     Z_SENSOR_FAILURE, Z_ACTUATOR_FAILURE,
 ]
 
@@ -125,6 +136,7 @@ DEFAULT_BOILER_OPTIONS = {
     CONF_MIN_OFF: 2,
     CONF_SAFETY_MAX: 85,
     CONF_WATER_MAX_AGE: 10,
+    CONF_NOTIFY_MESSAGE: "",
 }
 DEFAULT_T_MIN = 20.0
 DEFAULT_T_MAX = 72.0

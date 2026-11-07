@@ -8,7 +8,9 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass, Bina
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import CONF_TYPE, CONF_VALVE_POSITIONS, TYPE_ZONE
+from .const import (
+    CONF_STOVE, CONF_STOVE_DELAY, CONF_STOVE_THRESHOLD, CONF_TYPE, CONF_VALVE_POSITIONS, TYPE_ZONE,
+)
 from .entity import ControllerEntity
 
 
@@ -44,6 +46,18 @@ async def async_setup_entry(
                     attrs_fn=lambda: {
                         "valves_in_alert": [v for v, i in c.valve_report.items() if i["alert"]],
                         "positions": c.valve_report,
+                    },
+                )
+            )
+        if c.cfg.get(CONF_STOVE):
+            entities.append(
+                ControllerBinary(
+                    c, "stove_anticipation", lambda: c.stove_low, None,
+                    attrs_fn=lambda: {
+                        "stove_on": c._stove_on(),
+                        "threshold": c.cfg.get(CONF_STOVE_THRESHOLD),
+                        "delay_minutes": c.cfg.get(CONF_STOVE_DELAY),
+                        "temperature": c.current_temperature,
                     },
                 )
             )

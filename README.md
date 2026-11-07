@@ -1,12 +1,12 @@
 # Super Thermostat
 
-Intégration Home Assistant pour piloter chauffage, clim et vannes thermostatiques **depuis l'interface, sans YAML**. Elle reprend le moteur du plugin *Thermostat* de Jeedom (régulation avec anticipation sur la température extérieure et **auto-apprentissage**) et le sépare en deux rôles : des **zones** qui calculent des pourcentages, et des **gestionnaires** qui pilotent les appareils.
+Intégration Home Assistant (**version 1.0**) pour piloter chauffage, clim et vannes thermostatiques **depuis l'interface, sans YAML**. Elle reprend le moteur du plugin *Thermostat* de Jeedom (régulation avec anticipation sur la température extérieure et **auto-apprentissage**) et le sépare en deux rôles : des **zones** qui calculent des pourcentages, et des **gestionnaires** qui pilotent les appareils.
 
 ![Schéma de fonctionnement](docs/schema.svg)
 
 **En 30 secondes**
 
-1. **Mesures** : la température de la pièce et de l'extérieur, les fenêtres, la saison. La *fraction chaudière* dit quelle part de la chaleur vient de la chaudière : 0 % quand il fait doux, 100 % quand il fait froid.
+1. **Mesures** : la température de la pièce et de l'extérieur, les fenêtres, la saison, le poêle à bois. La *fraction chaudière* dit quelle part de la chaleur vient de la chaudière : 0 % quand il fait doux, 100 % quand il fait froid.
 2. **Zone** (une par pièce) : elle a deux consignes, chauffe et froid, et calcule des pourcentages. Elle ne commande aucun appareil.
 3. **Gestionnaires** : la chaudière additionne les pourcentages, la clim les suit, les vannes s'ouvrent selon la demande.
 4. **Appareils** : brûleur et circulateur, clim réversible, vannes thermostatiques.
@@ -20,7 +20,7 @@ Intégration Home Assistant pour piloter chauffage, clim et vannes thermostatiqu
 1. [Installation](#installation)
 2. [Mise en route pas à pas](#mise-en-route-pas-à-pas)
 3. [Les quatre types d'entrées](#les-quatre-types-dentrées)
-   - [Zone](#1-zone) (dont les [vannes thermostatiques](#vannes-thermostatiques))
+   - [Zone](#1-zone) (dont les [vannes thermostatiques](#vannes-thermostatiques), le [poêle à bois](#poêle-à-bois) et les [notifications de défaillance](#notifications-de-défaillance))
    - [Fraction chaudière](#2-fraction-chaudière)
    - [Gestion chaudière](#3-gestion-chaudière)
    - [Gestion clim](#4-gestion-clim)
@@ -93,6 +93,8 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 
 **Configurer → Vannes thermostatiques** : voir [Vannes thermostatiques](#vannes-thermostatiques).
 
+**Configurer → Poêle à bois** : voir [Poêle à bois](#poêle-à-bois).
+
 **Configurer → Régulation**
 
 | Champ | Rôle |
@@ -105,6 +107,8 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 
 **Configurer → Fenêtres** : capteurs d'ouverture, délai avant suspension (2 min) et délai avant reprise (2 min).
 
+**Configurer → Notifications de défaillance** : voir [Notifications](#notifications-de-défaillance).
+
 **Entités créées**
 
 | Entité | Description |
@@ -113,8 +117,9 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 | Puissance de chauffe | Pourcentage total demandé en chauffe. |
 | Puissance chaudière | Puissance de chauffe × fraction (attribut `fraction`). |
 | Puissance de froid | Pourcentage demandé en froid (zones avec froid). |
-| Statut | `heating`, `cooling`, `idle`, `off`, `suspended` (fenêtre), `sensor_failure`, `actuator_failure`. |
+| Statut | `heating`, `cooling`, `idle`, `off`, `suspended` (fenêtre), `stove` (poêle à bois : zone en pause), `sensor_failure`, `actuator_failure`. |
 | Défaillance | Binaire, ON si panne de sonde ou de chauffage. |
+| Poêle à bois : anticipation | Binaire (si un poêle est renseigné), ON quand le poêle est allumé et la pièce reste sous le seuil depuis le délai réglé. |
 | Vanne qui ne suit pas | Binaire (si les positions réelles des vannes sont renseignées), ON si une vanne reste à plus de 10 % de sa consigne pendant le délai réglé. |
 | `number` (configuration) | Coefficients appris, offsets, delta consigne, consignes des préréglages. |
 | Bouton « Réinitialiser l'apprentissage » | Repart des coefficients par défaut. |
@@ -145,6 +150,7 @@ Dans **Configurer → Vannes thermostatiques**, une zone peut piloter les vannes
 | Écart minimal avant de changer l'ouverture | La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (5 % par défaut). La fermeture complète est toujours appliquée. |
 | Ne jamais fermer complètement | Quand la demande est à 0, la vanne passe à l'ouverture minimale au lieu de se fermer. Prioritaire sur « Garder ouvert ». |
 | Garder ouvert tant qu'aucune autre zone ne demande | Voir ci-dessous (activé par défaut). |
+| Délai avant de renvoyer un ordre à une vanne | 30 minutes par défaut. Voir [Vérification et renvoi des ordres](#vérification-et-renvoi-des-ordres). |
 
 **Ouverture proportionnelle activée.** La demande est ramenée à la plage réglée : avec 15 % à 1 % et 70 % à 100 %, une demande de 1 % ouvre à 15 %, 50 % à environ 43 %, 100 % à 70 %. Mettre 0 et 100 aux deux extrémités fait suivre la valeur de l'entité telle quelle. Si l'entité choisie est indisponible, rien n'est envoyé.
 
@@ -156,6 +162,15 @@ Dans **Configurer → Vannes thermostatiques**, une zone peut piloter les vannes
 3. Sinon : fermeture immédiate.
 
 Dans tous les cas : rien n'est envoyé en froid, en été (entité « saison » ON), ni quand l'écart avec l'ouverture actuelle est inférieur à l'écart minimal, ce qui épargne les piles. Les vannes sont recalculées à chaque cycle de la zone, à chaque changement de demande d'une zone et à chaque changement de l'entité suivie. Le capteur **Ouverture des vannes** de la zone affiche l'ouverture voulue, avec en attributs la source, le mode proportionnel ou non, la demande des autres zones, l'état des vannes et, si les positions réelles sont renseignées, la consigne, la position et l'écart de chaque vanne.
+
+#### Vérification et renvoi des ordres
+
+Les vannes sont vérifiées **toutes les minutes**, y compris quand le thermostat est éteint ou à 0 % de demande : si une vanne n'a pas la valeur voulue, l'ordre est envoyé (ou renvoyé).
+
+Certaines vannes sur pile mettent **jusqu'à environ 30 minutes** entre l'ordre et le changement d'état. Pour ne pas les harceler :
+- un ordre **différent** est envoyé tout de suite ;
+- le **même** ordre n'est pas renvoyé avant le *délai avant de renvoyer un ordre* (30 min) ; passé ce délai, si la vanne n'a toujours pas suivi, il est renvoyé, et ainsi de suite ;
+- dès que la vanne est à la bonne valeur (ou à moins que l'écart minimal), il n'y a plus rien à envoyer.
 
 **Suivi de la position réelle.** Si tu renseignes les positions réelles, l'intégration compare pour chaque vanne la position à la consigne envoyée. Quand l'écart dépasse 10 % pendant plus que le délai réglé, l'indicateur **Vanne qui ne suit pas** de la zone s'active (attribut `valves_in_alert` : les vannes concernées, avec position, consigne et écart) et un avertissement est écrit dans les journaux. Le délai repart de zéro à chaque nouvel ordre, et rien n'est évalué en froid, en été, ni quand la position est indisponible. L'indicateur est séparé de « Défaillance » (régulation) : branche une automatisation dessus pour être notifié (pile faible, vanne bloquée…). La position réelle n'est qu'un témoin : l'intégration continue de comparer l'ouverture voulue à la consigne de la vanne, pour ne pas renvoyer un ordre qu'une vanne ne peut pas suivre.
 
@@ -170,6 +185,35 @@ Dans tous les cas : rien n'est envoyé en froid, en été (entité « saison » 
 - **Delta consigne** (0 par défaut = désactivé) : écart de lissage autour de la consigne, valable pour la chauffe et le froid. Avec 1 °C, la zone ne commence à chauffer que si le besoin existe à consigne − 0,5 °C, et vise alors consigne + 0,5 °C. Utile pour limiter les allers-retours sur une pièce qui oscille ; l'effet est modeste quand la température extérieure est basse.
 - **Offset chauffe / froid** : pourcentage ajouté à la puissance calculée (0 par défaut), pour compenser une pièce structurellement trop froide ou trop chaude.
 - Ces réglages **ne changent jamais seuls** (contrairement aux coefficients, qui sont appris) et s'appliquent immédiatement.
+
+#### Poêle à bois
+
+Dans **Configurer → Poêle à bois**, tu choisis un interrupteur (`input_boolean`, `switch`…) qui indique que le poêle est allumé.
+
+| Champ | Rôle |
+|---|---|
+| Poêle à bois allumé (interrupteur) | Facultatif. Activé = le poêle chauffe la pièce. |
+| Seuil d'anticipation | Température de la pièce sous laquelle on anticipe (21 °C par défaut). |
+| Durée sous le seuil avant d'anticiper | 10 minutes par défaut. |
+
+**Poêle allumé.** La zone passe en **pause** (statut `stove`) : elle ne demande plus rien, son mode, son préréglage et ses coefficients appris sont conservés, et le cycle interrompu n'est pas pris en compte pour l'apprentissage. Les vannes se ferment à **0 %, sans aucune contrainte** (« ne jamais fermer » et « garder ouvert » sont ignorés).
+
+**Pièce qui se refroidit.** Si la température reste sous le seuil pendant la durée réglée, l'indicateur **Poêle à bois : anticipation** s'active et les vannes s'ouvrent déjà (ouverture maximale en mode proportionnel, ouverture fixe sinon), **sans relancer le thermostat**. Si la température remonte au-dessus du seuil, elles se referment.
+
+**Poêle éteint** (l'interrupteur repasse à OFF) : la zone **reprend toute seule**, avec son mode et son préréglage d'avant. Il n'y a rien à remettre.
+
+L'intégration ne pose pas de question sur ton téléphone : branche une automatisation sur l'indicateur d'anticipation, par exemple pour demander « Le poêle est-il éteint ? » et remettre l'interrupteur à OFF si oui (voir l'exemple plus bas).
+
+#### Notifications de défaillance
+
+Dans **Configurer → Notifications de défaillance** (zones et gestion chaudière) :
+
+| Champ | Rôle |
+|---|---|
+| Service de notification | La liste propose les services existants (par exemple `notify.mobile_app_telephone`) ; tu peux aussi saisir le nom. Vide = aucune notification. |
+| Message en cas de défaillance | Texte libre. Variables : `$nom` (nom de l'entrée) et `$cause` (cause). Vide = `$nom : $cause`. |
+
+Une notification part **une fois** à chaque nouvelle défaillance, quand elle dure depuis plus de 5 minutes (pour éviter les faux messages au démarrage), avec le nom de l'entrée en titre. Elle repart si la défaillance disparaît puis revient. Défaillances surveillées : *zone* : sonde de température absente ou périmée, chauffage qui ne chauffe pas, vanne qui ne suit pas ; *chaudière* : sonde d'eau absente ou périmée, coupure de sécurité.
 
 ### 2. Fraction chaudière
 
@@ -207,6 +251,8 @@ Une seule entrée.
 | Sources de puissance | Entités numériques additionnées et plafonnées à 100 % : en général les capteurs « Puissance chaudière » des zones. Tu peux en ajouter d'autres à la main. |
 
 **Configurer → Temporisations et sécurité** : post-circulation du circulateur (0 min), durée mini brûleur allumé (2 min) et éteint (2 min), température de sécurité (85 °C), âge max de la sonde d'eau (10 min).
+
+**Configurer → Notifications de défaillance** : service de notification et message (voir [Notifications](#notifications-de-défaillance)) pour la sonde d'eau absente et la coupure de sécurité.
 
 **Entités** : Demande totale, Seuil bas eau, Seuil haut eau, Statut (`disabled`, `idle`, `circulating`, `heating`, `water_sensor_failure`, `safety_cutoff`), Brûleur, Circulateur, interrupteurs **Gestion active** et **Simulation**, et trois réglages :
 
@@ -306,6 +352,49 @@ actions:
 mode: single
 ```
 
+### Poêle à bois : demander confirmation sur le téléphone
+
+À utiliser avec l'indicateur « Poêle à bois : anticipation » de la zone (la pause de la zone et les vannes sont gérées par l'intégration) :
+
+```yaml
+alias: Poêle à bois - confirmation
+description: Quand la pièce se refroidit poêle allumé, demande si le poêle est éteint.
+triggers:
+  - trigger: state
+    entity_id: binary_sensor.sejour_poele_a_bois_anticipation
+    to: "on"
+actions:
+  - action: notify.mobile_app_telephone
+    data:
+      title: Poêle à bois
+      message: Le poêle n'est plus alimenté ?
+      data:
+        actions:
+          - action: POELE_ETEINT
+            title: Oui éteint
+          - action: POELE_REPART
+            title: Il repart !
+  - wait_for_trigger:
+      - trigger: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POELE_ETEINT
+      - trigger: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: POELE_REPART
+    timeout: "01:00:00"
+    continue_on_timeout: false
+  - if:
+      - condition: template
+        value_template: "{{ wait.trigger.event.data.action == 'POELE_ETEINT' }}"
+    then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.poele_bois
+mode: restart
+```
+
 ### Fixer deux consignes
 
 ```yaml
@@ -348,6 +437,8 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 | Les coefficients ne bougent pas | Auto-apprentissage désactivé, ou puissance toujours nulle ou saturée à 100 %. |
 | Fraction à 0 % alors qu'il fait froid | Fraction minimale non atteinte, ou température absente : voir `raw_fraction` et `source` des fractions, et « Température moyenne de la veille ». |
 | La chaudière ne s'allume pas | Vérifier le capteur Statut de la chaudière (`water_sensor_failure`, `safety_cutoff`) et que « Simulation » est éteint. |
+| La zone reste en statut `stove` | L'interrupteur « poêle à bois allumé » est encore ON. |
+| Une vanne ne se ferme pas | L'ordre est renvoyé toutes les 30 minutes tant que la vanne n'a pas suivi (délai réglable) ; voir « Vanne qui ne suit pas » si tu as renseigné sa position. |
 | Anciennes entités « non disponibles » après une mise à jour | Supprimer les entités orphelines dans Paramètres → Entités. |
 
 ---
@@ -367,6 +458,7 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
+| 1.0.0 | **Poêle à bois** (zone en pause, vannes à 0 %, anticipation sous le seuil, reprise automatique) ; **vannes vérifiées chaque minute** avec renvoi des ordres non suivis après un délai (30 min par défaut) ; **notifications de défaillance** (service + message) pour les zones et la chaudière. |
 | 0.10.0 | Vannes : interrupteur « ouverture proportionnelle » (désactivé = ouverture fixe, 100 % par défaut) ; ancienne configuration migrée automatiquement. Nettoyage : une seule marge de détection de défaillance, suppression des réglages de bascule devenus inutiles, schéma du README. |
 | 0.9.0 | Vannes : position réelle (capteur par vanne), affichage consigne / position / écart, indicateur « Vanne qui ne suit pas » (écart fixe de 10 %, délai réglable). |
 | 0.8.0 | Vannes : un champ libre « demande suivie » remplace les listes « pilotage » et « demande suivie », interrupteur « ne jamais fermer complètement » (ouverture minimale). |

@@ -86,6 +86,7 @@ class ZoneController:
         self.sensor_failure = False
         self.valve_target: int | None = None
         self.valve_alert = False
+        self._temp_good: tuple[float, float] | None = None  # (dernière valeur valide, date de son dernier rapport)
         self.stove_low = False  # poêle allumé et température sous le seuil depuis assez longtemps
         self._stove_low_since: float | None = None
         self._valve_orders: dict[str, tuple[int, float]] = {}  # dernier ordre envoyé à chaque vanne
@@ -138,6 +139,34 @@ class ZoneController:
     @property
     def current_temperature(self) -> float | None:
         return read_number(self.hass, self.cfg.get(CONF_TEMP_ENTITY), temperature=True)
+
+    def _fresh_temperature(self) -> float | None:
+        """Température de la pièce, avec tolérance aux coupures brèves de la sonde.
+
+        On retient la dernière valeur numérique et la date de son dernier rapport (le plus récent de
+        last_updated / last_reported). Un état « indisponible » de quelques minutes ne déclenche pas
+        de défaillance : celle-ci n'apparaît que si le dernier rapport valide a plus de « âge max de
+        la sonde ». Elle disparaît dès qu'un nouveau rapport arrive.
+        """
+        entity = self.cfg.get(CONF_TEMP_ENTITY)
+        value = read_number(self.hass, entity, temperature=True)
+        state = self.hass.states.get(entity) if entity else None
+        if value is not None and state is not None:
+            reported = max(state.last_updated, getattr(state, "last_reported", state.last_updated))
+            self._temp_good = (value, reported.timestamp())
+        if self._temp_good is None:
+            return None
+        if time.time() - self._temp_good[1] > float(self.cfg[CONF_MAX_SENSOR_AGE]) * 60:
+            return None
+        return self._temp_good[0]
+
+    @property
+    def sensor_age_minutes(self) -> float | None:
+        """Ancienneté du dernier rapport valide de la sonde (minutes)."""
+        self._fresh_temperature()
+        if self._temp_good is None:
+            return None
+        return round((time.time() - self._temp_good[1]) / 60, 1)
 
     @property
     def windows(self) -> list[str]:
@@ -261,7 +290,16 @@ class ZoneController:
         self._notify()
 
     @callback
+    def _check_sensor(self) -> None:
+        """Défaillance de sonde : détectée et levée à la minute, sans attendre la fin du cycle."""
+        if self.hvac_mode == "off" or self.suspended or self._stove_on():
+            return
+        if (self._fresh_temperature() is None) != self.sensor_failure:
+            self._recalc_now()
+
+    @callback
     def _tick(self, _now: Any = None) -> None:
+        self._check_sensor()
         self._check_stove()
         self._check_valves()
         self._drive_valves()
@@ -512,23 +550,23 @@ class ZoneController:
         if self.hvac_mode == "off":
             self.state.interrupt()
             self.sense = None
+            self.sensor_failure = False
             self._apply(Z_OFF)
             return
         if self._stove_on():
             # poêle allumé : zone en pause (mode et préréglage conservés, rien n'est appris)
             self.state.interrupt()
             self.sense = None
+            self.sensor_failure = False
             self._apply(Z_STOVE)
             return
         if self.suspended:
             self.state.interrupt()
+            self.sensor_failure = False
             self._apply(Z_SUSPENDED)
             return
 
-        temp_in = read_number(
-            self.hass, self.cfg.get(CONF_TEMP_ENTITY),
-            float(self.cfg[CONF_MAX_SENSOR_AGE]), temperature=True,
-        )
+        temp_in = self._fresh_temperature()
         if temp_in is None:
             self.state.interrupt()
             self.sensor_failure = True

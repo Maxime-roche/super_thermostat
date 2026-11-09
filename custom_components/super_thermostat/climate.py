@@ -100,6 +100,9 @@ class ZoneClimate(ControllerEntity, ClimateEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         return {
             "status": self._ctrl.status,
+            "sensor_entity": self._ctrl.cfg.get(CONF_TEMP_ENTITY),
+            "sensor_age_minutes": self._ctrl.sensor_age_minutes,
+            "sensor_failure": self._ctrl.sensor_failure,
             "active_sense": self._ctrl.sense,
             "target_heat": self._ctrl.target_heat,
             "target_cool": self._ctrl.target_cool,

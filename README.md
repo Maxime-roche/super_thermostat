@@ -88,7 +88,7 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 |---|---|
 | Fraction chaudière | Entité 0-100 % (au choix : fraction « moyenne de la veille » ou « température actuelle » de l'entrée Fraction chaudière, ou toute autre entité). Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %. |
 | Entité « saison » | `input_boolean` / `switch` / `binary_sensor` : ON = été = froid. Sert au mode Auto. |
-| Âge max de la sonde | Sans nouvelle valeur pendant ce délai : statut « défaillance sonde ». |
+| Âge max de la sonde | Sans nouveau rapport valide de la sonde pendant ce délai : statut « défaillance sonde ». Une coupure brève (état « indisponible ») est tolérée tant que le dernier rapport valide a moins que ce délai. À régler un peu au-dessus du plus long intervalle entre deux rapports de ta sonde. |
 | Puissance en cas de défaillance | Puissance demandée si la sonde est absente (0 par défaut). |
 
 **Configurer → Vannes thermostatiques** : voir [Vannes thermostatiques](#vannes-thermostatiques).
@@ -299,6 +299,8 @@ bornée entre 0 et 100. Le premier terme corrige l'écart ; le second **anticipe
 - **Défaillance du chauffage** : détectée seulement quand l'apprentissage est mûr (compteur au-dessus de 25), après deux cycles de suite.
 - Un coefficient réglé à la main ré-initialise son compteur à 10.
 - Le pourcentage est **constant pendant tout le cycle** : une zone ne commute rien.
+- **La température affichée par l'entité `climate` est celle de la sonde, en direct** (mise à jour à chaque changement de la sonde). C'est le **calcul du pourcentage** qui lit la température une fois par cycle, au début de chaque cycle : c'est ce qui rend la régulation stable (durée du cycle réglable). L'attribut `sensor_entity` de l'entité `climate` indique la sonde réellement utilisée, `sensor_age_minutes` l'âge de son dernier rapport.
+- **Fraîcheur de la sonde** : vérifiée **chaque minute**. Elle repose sur le dernier rapport valide de la sonde (le plus récent entre `last_updated` et `last_reported`). Une défaillance apparaît seulement quand ce rapport a plus que l'*âge max de la sonde*, et disparaît dès qu'un nouveau rapport arrive, sans attendre la fin du cycle. La notification n'est envoyée que si elle dure plus de 5 minutes.
 
 ### Chaudière
 
@@ -432,8 +434,9 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Symptôme | Piste |
 |---|---|
+| La température de l'entité `climate` ne correspond pas à la sonde que je regarde | Regarde l'attribut `sensor_entity` de l'entité `climate` (Outils de développement → États) : c'est la sonde réellement utilisée par la zone. Elle peut différer de celle que tu consultes. |
 | La zone reste « Au repos » | Mode Auto sans entité saison, température dans la zone morte entre les deux consignes. |
-| « Défaillance sonde » | La sonde n'a pas de nouvelle valeur depuis plus que « Âge max de la sonde ». |
+| « Défaillance sonde » ou notification de sonde périmée | Le dernier rapport valide de la sonde a plus que « Âge max de la sonde » (attribut `sensor_age_minutes` de l'entité `climate`). Règle ce délai au-dessus du plus long intervalle entre deux rapports de ta sonde. Pour la sonde d'eau de la chaudière, le réglage équivalent est « Âge max de la sonde d'eau » (10 min par défaut). |
 | Les coefficients ne bougent pas | Auto-apprentissage désactivé, ou puissance toujours nulle ou saturée à 100 %. |
 | Fraction à 0 % alors qu'il fait froid | Fraction minimale non atteinte, ou température absente : voir `raw_fraction` et `source` des fractions, et « Température moyenne de la veille ». |
 | La chaudière ne s'allume pas | Vérifier le capteur Statut de la chaudière (`water_sensor_failure`, `safety_cutoff`) et que « Simulation » est éteint. |
@@ -458,6 +461,7 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
+| 1.0.1 | Sonde de la zone : coupures brèves tolérées, défaillance détectée et levée chaque minute (plus de défaillance « collée » jusqu'à la fin du cycle), attributs `sensor_entity` / `sensor_age_minutes` sur l'entité `climate`. |
 | 1.0.0 | **Poêle à bois** (zone en pause, vannes à 0 %, anticipation sous le seuil, reprise automatique) ; **vannes vérifiées chaque minute** avec renvoi des ordres non suivis après un délai (30 min par défaut) ; **notifications de défaillance** (service + message) pour les zones et la chaudière. |
 | 0.10.0 | Vannes : interrupteur « ouverture proportionnelle » (désactivé = ouverture fixe, 100 % par défaut) ; ancienne configuration migrée automatiquement. Nettoyage : une seule marge de détection de défaillance, suppression des réglages de bascule devenus inutiles, schéma du README. |
 | 0.9.0 | Vannes : position réelle (capteur par vanne), affichage consigne / position / écart, indicateur « Vanne qui ne suit pas » (écart fixe de 10 %, délai réglable). |

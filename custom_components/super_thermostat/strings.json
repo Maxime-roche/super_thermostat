@@ -90,7 +90,6 @@
         "menu_options": {
           "zone_sensors": "Sensors, type and cycle",
           "valves": "Thermostatic valves",
-          "stove": "Wood stove",
           "notifications": "Failure notifications",
           "regulation": "Regulation",
           "windows": "Openings",
@@ -99,7 +98,8 @@
           "fraction_source": "Reference temperature",
           "ac_entities": "AC, sources and fraction",
           "ac_tuning": "Timings",
-          "save": "Save and close"
+          "save": "Save and close",
+          "stove": "Wood stove"
         }
       },
       "zone_sensors": {
@@ -344,9 +344,9 @@
           "idle": "Idle",
           "off": "Off",
           "suspended": "Suspended (opening)",
-          "stove": "Wood stove (zone paused)",
           "sensor_failure": "Sensor failure",
-          "actuator_failure": "Heating failure"
+          "actuator_failure": "Heating failure",
+          "stove": "Wood stove (zone paused)"
         }
       },
       "demand": {
@@ -377,14 +377,14 @@
       "valve_problem": {
         "name": "Valve not following"
       },
-      "stove_anticipation": {
-        "name": "Wood stove: anticipation"
-      },
       "burner": {
         "name": "Burner"
       },
       "circulator": {
         "name": "Circulator"
+      },
+      "stove_anticipation": {
+        "name": "Wood stove: anticipation"
       }
     },
     "number": {

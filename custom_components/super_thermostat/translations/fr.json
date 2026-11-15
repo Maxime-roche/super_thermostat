@@ -90,7 +90,6 @@
         "menu_options": {
           "zone_sensors": "Sondes, type et cycle",
           "valves": "Vannes thermostatiques",
-          "stove": "Poêle à bois",
           "notifications": "Notifications de défaillance",
           "regulation": "Régulation",
           "windows": "Ouvrants",
@@ -99,7 +98,8 @@
           "fraction_source": "Température de référence",
           "ac_entities": "Clim, sources et fraction",
           "ac_tuning": "Temporisations",
-          "save": "Enregistrer et fermer"
+          "save": "Enregistrer et fermer",
+          "stove": "Poêle à bois"
         }
       },
       "zone_sensors": {
@@ -344,9 +344,9 @@
           "idle": "Au repos",
           "off": "Arrêtée",
           "suspended": "Suspendue (ouvrant)",
-          "stove": "Poêle à bois (zone en pause)",
           "sensor_failure": "Défaillance sonde",
-          "actuator_failure": "Défaillance chauffage"
+          "actuator_failure": "Défaillance chauffage",
+          "stove": "Poêle à bois (zone en pause)"
         }
       },
       "demand": {
@@ -377,14 +377,14 @@
       "valve_problem": {
         "name": "Vanne qui ne suit pas"
       },
-      "stove_anticipation": {
-        "name": "Poêle à bois : anticipation"
-      },
       "burner": {
         "name": "Brûleur"
       },
       "circulator": {
         "name": "Circulateur"
+      },
+      "stove_anticipation": {
+        "name": "Poêle à bois : anticipation"
       }
     },
     "number": {

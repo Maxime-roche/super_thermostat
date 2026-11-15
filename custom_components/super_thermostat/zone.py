@@ -25,7 +25,8 @@ from homeassistant.helpers.storage import Store
 from .const import (
     ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, CONF_ALLOWED, CONF_AUTOLEARN, CONF_CYCLE,
     CONF_FAIL_OFFSET, CONF_FAILSAFE_POWER, CONF_NOTIFY_MESSAGE, CONF_NOTIFY_SERVICE,
-    CONF_STOVE, CONF_STOVE_DELAY, CONF_STOVE_THRESHOLD, CONF_VALVE_RETRY, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES,
+    CONF_VALVE_RETRY, CONF_FRACTION_ENTITY, CONF_LIMIT_CYCLES, CONF_STOVE, CONF_STOVE_DELAY,
+    CONF_STOVE_THRESHOLD,
     CONF_MAX_SENSOR_AGE, CONF_MIN_POWER, CONF_OFFSET_NEXT_FULL, CONF_OUTDOOR_ENTITY,
     CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_VALVE_ALERT_MINUTES, CONF_VALVE_KEEP_OPEN,
     CONF_VALVE_LEVEL, CONF_VALVE_MIN_STEP, CONF_VALVE_NEVER_CLOSE, CONF_VALVE_OPEN_MAX,
@@ -86,9 +87,9 @@ class ZoneController:
         self.sensor_failure = False
         self.valve_target: int | None = None
         self.valve_alert = False
-        self._temp_good: tuple[float, float] | None = None  # (dernière valeur valide, date de son dernier rapport)
         self.stove_low = False  # poêle allumé et température sous le seuil depuis assez longtemps
         self._stove_low_since: float | None = None
+        self._temp_good: tuple[float, float] | None = None  # (dernière valeur valide, date de son dernier rapport)
         self._valve_orders: dict[str, tuple[int, float]] = {}  # dernier ordre envoyé à chaque vanne
         self._notifier = FailureNotifier(
             hass, entry.title, self.cfg.get(CONF_NOTIFY_SERVICE), self.cfg.get(CONF_NOTIFY_MESSAGE)
@@ -272,7 +273,7 @@ class ZoneController:
             self._unsubs.append(
                 async_track_state_change_event(self.hass, [self.cfg[CONF_STOVE]], self._on_stove_event)
             )
-        # une vérification par minute : vannes (ordres à renvoyer), position réelle, poêle, notifications
+        # une vérification par minute : sonde, poêle, vannes (ordres à renvoyer), position réelle, notifications
         self._unsubs.append(async_track_time_interval(self.hass, self._tick, timedelta(minutes=1)))
         if self.cfg.get(CONF_ZONE_SEASON):
             self._unsubs.append(
@@ -288,22 +289,6 @@ class ZoneController:
     def _on_fraction_event(self, _event: Event) -> None:
         self._refresh_valves()
         self._notify()
-
-    @callback
-    def _check_sensor(self) -> None:
-        """Défaillance de sonde : détectée et levée à la minute, sans attendre la fin du cycle."""
-        if self.hvac_mode == "off" or self.suspended or self._stove_on():
-            return
-        if (self._fresh_temperature() is None) != self.sensor_failure:
-            self._recalc_now()
-
-    @callback
-    def _tick(self, _now: Any = None) -> None:
-        self._check_sensor()
-        self._check_stove()
-        self._check_valves()
-        self._drive_valves()
-        self._update_failures()
 
     # ---- poêle à bois ----
     def _stove_on(self) -> bool:
@@ -333,6 +318,22 @@ class ZoneController:
             self.stove_low = low
             self._drive_valves()  # on ouvre déjà les vannes (ou on les referme) sans relancer le thermostat
             self._notify()
+
+    @callback
+    def _check_sensor(self) -> None:
+        """Défaillance de sonde : détectée et levée à la minute, sans attendre la fin du cycle."""
+        if self.hvac_mode == "off" or self.suspended or self._stove_on():
+            return
+        if (self._fresh_temperature() is None) != self.sensor_failure:
+            self._recalc_now()
+
+    @callback
+    def _tick(self, _now: Any = None) -> None:
+        self._check_sensor()
+        self._check_stove()
+        self._check_valves()
+        self._drive_valves()
+        self._update_failures()
 
     # ---- notifications de défaillance ----
     @callback

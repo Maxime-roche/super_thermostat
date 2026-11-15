@@ -196,7 +196,7 @@ Dans **Configurer → Poêle à bois**, tu choisis un interrupteur (`input_boole
 | Seuil d'anticipation | Température de la pièce sous laquelle on anticipe (21 °C par défaut). |
 | Durée sous le seuil avant d'anticiper | 10 minutes par défaut. |
 
-**Poêle allumé.** La zone passe en **pause** (statut `stove`) : elle ne demande plus rien, son mode, son préréglage et ses coefficients appris sont conservés, et le cycle interrompu n'est pas pris en compte pour l'apprentissage. Les vannes se ferment à **0 %, sans aucune contrainte** (« ne jamais fermer » et « garder ouvert » sont ignorés).
+**Poêle allumé.** La zone passe en **pause** (statut `stove`) : elle ne demande plus rien, son mode, son préréglage et ses coefficients appris sont conservés, et le cycle interrompu n'est pas pris en compte pour l'apprentissage. Les vannes se ferment à **0 %, sans aucune contrainte** (« ne jamais fermer » et « garder ouvert » sont ignorés). Pendant la pause, la sonde n'est pas surveillée.
 
 **Pièce qui se refroidit.** Si la température reste sous le seuil pendant la durée réglée, l'indicateur **Poêle à bois : anticipation** s'active et les vannes s'ouvrent déjà (ouverture maximale en mode proportionnel, ouverture fixe sinon), **sans relancer le thermostat**. Si la température remonte au-dessus du seuil, elles se referment.
 
@@ -435,12 +435,12 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 | Symptôme | Piste |
 |---|---|
 | La température de l'entité `climate` ne correspond pas à la sonde que je regarde | Regarde l'attribut `sensor_entity` de l'entité `climate` (Outils de développement → États) : c'est la sonde réellement utilisée par la zone. Elle peut différer de celle que tu consultes. |
+| La zone reste en statut `stove` | L'interrupteur « poêle à bois allumé » est encore ON. |
 | La zone reste « Au repos » | Mode Auto sans entité saison, température dans la zone morte entre les deux consignes. |
 | « Défaillance sonde » ou notification de sonde périmée | Le dernier rapport valide de la sonde a plus que « Âge max de la sonde » (attribut `sensor_age_minutes` de l'entité `climate`). Règle ce délai au-dessus du plus long intervalle entre deux rapports de ta sonde. Pour la sonde d'eau de la chaudière, le réglage équivalent est « Âge max de la sonde d'eau » (10 min par défaut). |
 | Les coefficients ne bougent pas | Auto-apprentissage désactivé, ou puissance toujours nulle ou saturée à 100 %. |
 | Fraction à 0 % alors qu'il fait froid | Fraction minimale non atteinte, ou température absente : voir `raw_fraction` et `source` des fractions, et « Température moyenne de la veille ». |
 | La chaudière ne s'allume pas | Vérifier le capteur Statut de la chaudière (`water_sensor_failure`, `safety_cutoff`) et que « Simulation » est éteint. |
-| La zone reste en statut `stove` | L'interrupteur « poêle à bois allumé » est encore ON. |
 | Une vanne ne se ferme pas | L'ordre est renvoyé toutes les 30 minutes tant que la vanne n'a pas suivi (délai réglable) ; voir « Vanne qui ne suit pas » si tu as renseigné sa position. |
 | Anciennes entités « non disponibles » après une mise à jour | Supprimer les entités orphelines dans Paramètres → Entités. |
 
@@ -461,8 +461,10 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
+| 1.0.3 | **Retour de la gestion du poêle à bois** (retirée par erreur en 1.0.2) : onglet *Poêle à bois*, zone en pause, vannes à 0 %, anticipation, indicateur et statut `stove`. Si les réglages du poêle ont été supprimés par la 1.0.2 au démarrage, il faut les ressaisir. |
+| 1.0.2 | Retrait de la gestion du poêle à bois (onglet, indicateur d'anticipation, statut `stove`) ; les anciens réglages sont supprimés automatiquement au démarrage. |
 | 1.0.1 | Sonde de la zone : coupures brèves tolérées, défaillance détectée et levée chaque minute (plus de défaillance « collée » jusqu'à la fin du cycle), attributs `sensor_entity` / `sensor_age_minutes` sur l'entité `climate`. |
-| 1.0.0 | **Poêle à bois** (zone en pause, vannes à 0 %, anticipation sous le seuil, reprise automatique) ; **vannes vérifiées chaque minute** avec renvoi des ordres non suivis après un délai (30 min par défaut) ; **notifications de défaillance** (service + message) pour les zones et la chaudière. |
+| 1.0.0 | **Vannes vérifiées chaque minute** avec renvoi des ordres non suivis après un délai (30 min par défaut) ; **notifications de défaillance** (service + message) pour les zones et la chaudière. |
 | 0.10.0 | Vannes : interrupteur « ouverture proportionnelle » (désactivé = ouverture fixe, 100 % par défaut) ; ancienne configuration migrée automatiquement. Nettoyage : une seule marge de détection de défaillance, suppression des réglages de bascule devenus inutiles, schéma du README. |
 | 0.9.0 | Vannes : position réelle (capteur par vanne), affichage consigne / position / écart, indicateur « Vanne qui ne suit pas » (écart fixe de 10 %, délai réglable). |
 | 0.8.0 | Vannes : un champ libre « demande suivie » remplace les listes « pilotage » et « demande suivie », interrupteur « ne jamais fermer complètement » (ouverture minimale). |

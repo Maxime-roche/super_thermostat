@@ -82,6 +82,15 @@ ZONE_SENSORS = vol.Schema(
         vol.Required(CONF_FAILSAFE_POWER): _num(0, 100, 1, "%"),
     }
 )
+ZONE_STOVE = vol.Schema(
+    {
+        vol.Optional(CONF_STOVE): sel.EntitySelector(
+            sel.EntitySelectorConfig(domain=["input_boolean", "switch", "binary_sensor"])
+        ),
+        vol.Required(CONF_STOVE_THRESHOLD): _num(5, 30, 0.5, "°C"),
+        vol.Required(CONF_STOVE_DELAY): _num(0, 180, 1, "min"),
+    }
+)
 ZONE_VALVES = vol.Schema(
     {
         vol.Optional(CONF_VALVES): sel.EntitySelector(
@@ -102,17 +111,6 @@ ZONE_VALVES = vol.Schema(
         vol.Required(CONF_VALVE_KEEP_OPEN): sel.BooleanSelector(),
     }
 )
-ZONE_STOVE = vol.Schema(
-    {
-        vol.Optional(CONF_STOVE): sel.EntitySelector(
-            sel.EntitySelectorConfig(domain=["input_boolean", "switch", "binary_sensor"])
-        ),
-        vol.Required(CONF_STOVE_THRESHOLD): _num(5, 30, 0.5, "°C"),
-        vol.Required(CONF_STOVE_DELAY): _num(0, 180, 1, "min"),
-    }
-)
-
-
 def _notify_schema(hass) -> vol.Schema:
     """Choix du service de notification parmi ceux qui existent (saisie libre possible) + message."""
     try:
@@ -196,8 +194,8 @@ AC_TUNING = vol.Schema(
     }
 )
 CLEARABLE = {
-    CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_SOURCE: "", CONF_VALVE_POSITIONS: [], CONF_VALVE_LEVEL: "",
-    CONF_STOVE: "", CONF_NOTIFY_SERVICE: "", CONF_NOTIFY_MESSAGE: "",
+    CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_SOURCE: "", CONF_VALVE_POSITIONS: [], CONF_VALVE_LEVEL: "", CONF_STOVE: "",
+    CONF_NOTIFY_SERVICE: "", CONF_NOTIFY_MESSAGE: "",
     CONF_AC_FRACTION: "", CONF_SUMMER: "", CONF_ZONE_SEASON: "", CONF_COOL_SOURCES: [],
 }
 

@@ -40,11 +40,11 @@ ALLOWED_HEAT = "heat"
 ALLOWED_COOL = "cool"
 ALLOWED_ALL = "all"
 
+CONF_NOTIFY_SERVICE = "notify_service"      # service de notification (ex. notify.mobile_app_telephone)
+CONF_NOTIFY_MESSAGE = "notify_message"      # message ($nom = nom, $cause = cause)
 CONF_STOVE = "stove_entity"                 # interrupteur « poêle à bois allumé »
 CONF_STOVE_THRESHOLD = "stove_threshold"    # sous cette température (poêle allumé) : on anticipe
 CONF_STOVE_DELAY = "stove_delay"            # durée sous le seuil avant d'anticiper (min)
-CONF_NOTIFY_SERVICE = "notify_service"      # service de notification (ex. notify.mobile_app_telephone)
-CONF_NOTIFY_MESSAGE = "notify_message"      # message ($nom = nom, $cause = cause)
 CONF_VALVE_RETRY = "valve_retry_minutes"    # délai avant de renvoyer un ordre identique à une vanne
 CONF_VALVE_POSITIONS = "valve_position_entities"  # position réelle de chaque vanne (même ordre que les vannes)
 CONF_VALVE_ALERT_MINUTES = "valve_alert_minutes"    # 0 = alerte désactivée

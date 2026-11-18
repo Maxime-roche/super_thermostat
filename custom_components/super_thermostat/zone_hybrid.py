@@ -46,11 +46,21 @@ class ZoneHybridController(ZoneController):
         self.offset_ac: float = 0.0
         self.gain_boiler: float = DEFAULT_GAIN_BOILER
         self.n_boiler_days: int = 0
+        self._power_boiler_hybrid: int = 0  # séparé du calcul parent (fraction * power_heat)
         self.power_ac: int = 0
         self._daily_errors: list[float] = []
         self._last_ac_temp_in: float | None = None
         self._last_ac_order: float | None = None
         self._last_ac_power: int = 0
+
+    # ---- Override : power_boiler est géré en propre ici (pas fraction * power_heat) ----
+    @property
+    def power_boiler(self) -> int:  # type: ignore[override]
+        return self._power_boiler_hybrid
+
+    @power_boiler.setter
+    def power_boiler(self, value: int) -> None:
+        self._power_boiler_hybrid = int(value)
 
     # ---------------------------------------------------------------- storage
     def _data(self) -> dict[str, Any]:

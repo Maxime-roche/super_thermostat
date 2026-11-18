@@ -5,6 +5,7 @@
         "title": "Super Thermostat",
         "menu_options": {
           "zone": "Ajouter une zone (calcule un % de chauffe)",
+          "zone_hybrid": "Ajouter une zone combinée (Chaudière base + Clim appoint)",
           "boiler": "Ajouter la gestion chaudière",
           "fraction": "Ajouter une fraction chaudière (répartition chaudière / clim)",
           "ac": "Ajouter la gestion de la clim (chauffe)"
@@ -24,6 +25,26 @@
           "outdoor_entity": "Facultatif. Sans elle, la zone ne tient pas compte de la météo.",
           "allowed_modes": "Définit les modes proposés par la zone (chauffage, climatisation ou les deux).",
           "cycle_minutes": "Période de recalcul du pourcentage. Sert aussi de fenêtre de mesure pour l'apprentissage."
+        }
+      },
+      "zone_hybrid": {
+        "title": "Nouvelle zone Chaudière + Clim",
+        "data": {
+          "name": "Nom de la zone",
+          "temperature_entity": "Sonde de température intérieure",
+          "outdoor_entity": "Sonde de température extérieure",
+          "boiler_fraction_entity": "Fraction chaudière (0-100 %)",
+          "associated_climate": "Clim associée (Daikin)",
+          "allowed_modes": "Type de zone",
+          "cycle_minutes": "Durée du cycle court (clim)"
+        },
+        "data_description": {
+          "temperature_entity": "Sonde de température de la pièce.",
+          "outdoor_entity": "Sonde extérieure servant à la loi d'eau de la base chaudière.",
+          "boiler_fraction_entity": "Puissance chaudière = pertes météo × fraction. Vide = 100 %.",
+          "associated_climate": "Clim (ex. Daikin) pour l'appoint rapide et le contrôle du ventilateur.",
+          "allowed_modes": "Modes proposés par la zone (chauffage, clim ou les deux).",
+          "cycle_minutes": "Période de la boucle rapide et fenêtre d'apprentissage de la clim (10 min recommandé)."
         }
       },
       "boiler": {
@@ -98,8 +119,7 @@
           "fraction_source": "Température de référence",
           "ac_entities": "Clim, sources et fraction",
           "ac_tuning": "Temporisations",
-          "save": "Enregistrer et fermer",
-          "stove": "Poêle à bois"
+          "save": "Enregistrer et fermer"
         }
       },
       "zone_sensors": {
@@ -113,7 +133,8 @@
           "max_sensor_age": "Âge max de la sonde avant défaillance",
           "failsafe_power": "Puissance en cas de défaillance sonde",
           "boiler_fraction_entity": "Fraction chaudière (0-100 %)",
-          "season_entity": "Entité « saison » (été = froid)"
+          "season_entity": "Entité « saison » (été = froid)",
+          "associated_climate": "Clim associée (gestion ventilation)"
         },
         "data_description": {
           "temperature_entity": "Sonde de température de la pièce : sensor, input_number, number, météo ou climate.",
@@ -123,7 +144,8 @@
           "max_sensor_age": "Sans nouvelle valeur de la sonde pendant ce délai, la zone passe en « défaillance sonde ».",
           "failsafe_power": "0 = la zone ne demande rien si la sonde est absente.",
           "boiler_fraction_entity": "Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %.",
-          "season_entity": "Mode Auto : si activée (été) la zone refroidit, sinon elle chauffe. Vide = le sens suit la température (sous la consigne de chauffe : chauffe ; au-dessus de la consigne de froid : froid ; entre les deux : zone morte)."
+          "season_entity": "Mode Auto : si activée (été) la zone refroidit, sinon elle chauffe. Vide = le sens suit la température (sous la consigne de chauffe : chauffe ; au-dessus de la consigne de froid : froid ; entre les deux : zone morte).",
+          "associated_climate": "Entité climatiseur facultative (ex. Daikin) pour afficher et modifier la ventilation directement depuis ce thermostat."
         }
       },
       "valves": {
@@ -155,19 +177,6 @@
           "valve_min_step": "La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (la fermeture complète est toujours appliquée).",
           "valve_never_close": "Quand la demande est à 0, la vanne passe à l'ouverture minimale au lieu de se fermer. Prioritaire sur « garder ouvert ».",
           "valve_keep_open": "Quand la demande tombe à 0, la vanne reste telle quelle sauf si une autre zone demande de la chaudière : elle se ferme alors. Désactivé : fermeture immédiate."
-        }
-      },
-      "stove": {
-        "title": "Poêle à bois",
-        "data": {
-          "stove_entity": "Poêle à bois allumé (interrupteur)",
-          "stove_threshold": "Seuil d'anticipation",
-          "stove_delay": "Durée sous le seuil avant d'anticiper"
-        },
-        "data_description": {
-          "stove_entity": "Interrupteur (input_boolean…) activé quand le poêle à bois est allumé. La zone se met alors en pause (mode, préréglage et apprentissage conservés) et les vannes se ferment à 0 %, sans aucune contrainte. À la désactivation, la zone reprend seule.",
-          "stove_threshold": "Poêle allumé et température de la pièce sous ce seuil : l'intégration anticipe, les vannes s'ouvrent déjà, sans relancer le thermostat.",
-          "stove_delay": "Durée sous le seuil avant d'anticiper. L'indicateur « Poêle à bois : anticipation » s'active alors (pratique pour t'envoyer une notification)."
         }
       },
       "notifications": {
@@ -307,6 +316,9 @@
       "power_boiler": {
         "name": "Puissance chaudière"
       },
+      "power_ac": {
+        "name": "Puissance clim"
+      },
       "ac_setpoint": {
         "name": "Consigne envoyée à la clim"
       },
@@ -345,8 +357,7 @@
           "off": "Arrêtée",
           "suspended": "Suspendue (ouvrant)",
           "sensor_failure": "Défaillance sonde",
-          "actuator_failure": "Défaillance chauffage",
-          "stove": "Poêle à bois (zone en pause)"
+          "actuator_failure": "Défaillance chauffage"
         }
       },
       "demand": {
@@ -382,12 +393,18 @@
       },
       "circulator": {
         "name": "Circulateur"
-      },
-      "stove_anticipation": {
-        "name": "Poêle à bois : anticipation"
       }
     },
     "number": {
+      "gain_boiler": {
+        "name": "Gain de base chaudière"
+      },
+      "coeff_in_ac": {
+        "name": "Coefficient réactivité clim (intérieur)"
+      },
+      "offset_ac": {
+        "name": "Décalage clim"
+      },
       "coeff_in_heat": {
         "name": "Coefficient chauffe (intérieur)"
       },

@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
-    ALLOWED_ALL, CONF_TEMP_ENTITY, MAX_TEMP, MIN_TEMP, Z_COOLING, Z_HEATING, Z_OFF,
+    ALLOWED_ALL, CONF_ASSOCIATED_CLIMATE, CONF_TEMP_ENTITY, MAX_TEMP, MIN_TEMP, Z_COOLING, Z_HEATING, Z_OFF,
 )
 from .entity import ControllerEntity
 
@@ -46,13 +46,18 @@ class ZoneClimate(ControllerEntity, ClimateEntity):
         )
         if controller.allowed == ALLOWED_ALL:
             features |= ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+        if controller.cfg.get(CONF_ASSOCIATED_CLIMATE):
+            features |= ClimateEntityFeature.FAN_MODE
         self._attr_supported_features = features
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+        watched = [self._ctrl.cfg[CONF_TEMP_ENTITY]]
+        if associated := self._ctrl.cfg.get(CONF_ASSOCIATED_CLIMATE):
+            watched.append(associated)
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, [self._ctrl.cfg[CONF_TEMP_ENTITY]],
+                self.hass, watched,
                 lambda _event: self.async_write_ha_state(),
             )
         )
@@ -97,8 +102,28 @@ class ZoneClimate(ControllerEntity, ClimateEntity):
         return self._ctrl.preset_names.get(slug, PRESET_NONE) if slug else PRESET_NONE
 
     @property
+    def fan_mode(self) -> str | None:
+        entity = self._ctrl.cfg.get(CONF_ASSOCIATED_CLIMATE)
+        if not entity:
+            return None
+        state = self.hass.states.get(entity)
+        if state is None:
+            return None
+        return state.attributes.get("fan_mode")
+
+    @property
+    def fan_modes(self) -> list[str] | None:
+        entity = self._ctrl.cfg.get(CONF_ASSOCIATED_CLIMATE)
+        if not entity:
+            return None
+        state = self.hass.states.get(entity)
+        if state is None:
+            return None
+        return state.attributes.get("fan_modes")
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {
+        attrs = {
             "status": self._ctrl.status,
             "sensor_entity": self._ctrl.cfg.get(CONF_TEMP_ENTITY),
             "sensor_age_minutes": self._ctrl.sensor_age_minutes,
@@ -110,6 +135,18 @@ class ZoneClimate(ControllerEntity, ClimateEntity):
             "power_heat": self._ctrl.power_heat,
             "power_cool": self._ctrl.power_cool,
         }
+        if associated := self._ctrl.cfg.get(CONF_ASSOCIATED_CLIMATE):
+            attrs["associated_climate"] = associated
+        return attrs
+
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        """Transmet le mode de ventilation à la clim associée."""
+        entity = self._ctrl.cfg.get(CONF_ASSOCIATED_CLIMATE)
+        if not entity:
+            return
+        await self.hass.services.async_call(
+            "climate", "set_fan_mode", {"entity_id": entity, "fan_mode": fan_mode}, blocking=False
+        )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         await self._ctrl.async_set_hvac_mode(hvac_mode.value)

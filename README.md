@@ -6,7 +6,7 @@ Intégration Home Assistant (**version 1.0**) pour piloter chauffage, clim et va
 
 **En 30 secondes**
 
-1. **Mesures** : la température de la pièce et de l'extérieur, les fenêtres, la saison, le poêle à bois. La *fraction chaudière* dit quelle part de la chaleur vient de la chaudière : 0 % quand il fait doux, 100 % quand il fait froid.
+1. **Mesures** : la température de la pièce et de l'extérieur, les fenêtres, la saison. La *fraction chaudière* dit quelle part de la chaleur vient de la chaudière : 0 % quand il fait doux, 100 % quand il fait froid.
 2. **Zone** (une par pièce) : elle a deux consignes, chauffe et froid, et calcule des pourcentages. Elle ne commande aucun appareil.
 3. **Gestionnaires** : la chaudière additionne les pourcentages, la clim les suit, les vannes s'ouvrent selon la demande.
 4. **Appareils** : brûleur et circulateur, clim réversible, vannes thermostatiques.
@@ -20,7 +20,7 @@ Intégration Home Assistant (**version 1.0**) pour piloter chauffage, clim et va
 1. [Installation](#installation)
 2. [Mise en route pas à pas](#mise-en-route-pas-à-pas)
 3. [Les quatre types d'entrées](#les-quatre-types-dentrées)
-   - [Zone](#1-zone) (dont les [vannes thermostatiques](#vannes-thermostatiques), le [poêle à bois](#poêle-à-bois) et les [notifications de défaillance](#notifications-de-défaillance))
+   - [Zone](#1-zone) (dont les [vannes thermostatiques](#vannes-thermostatiques) et les [notifications de défaillance](#notifications-de-défaillance))
    - [Fraction chaudière](#2-fraction-chaudière)
    - [Gestion chaudière](#3-gestion-chaudière)
    - [Gestion clim](#4-gestion-clim)
@@ -93,8 +93,6 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 
 **Configurer → Vannes thermostatiques** : voir [Vannes thermostatiques](#vannes-thermostatiques).
 
-**Configurer → Poêle à bois** : voir [Poêle à bois](#poêle-à-bois).
-
 **Configurer → Régulation**
 
 | Champ | Rôle |
@@ -117,9 +115,8 @@ Chaque type s'ajoute depuis *Ajouter une intégration → Super Thermostat*. Les
 | Puissance de chauffe | Pourcentage total demandé en chauffe. |
 | Puissance chaudière | Puissance de chauffe × fraction (attribut `fraction`). |
 | Puissance de froid | Pourcentage demandé en froid (zones avec froid). |
-| Statut | `heating`, `cooling`, `idle`, `off`, `suspended` (fenêtre), `stove` (poêle à bois : zone en pause), `sensor_failure`, `actuator_failure`. |
+| Statut | `heating`, `cooling`, `idle`, `off`, `suspended` (fenêtre), `sensor_failure`, `actuator_failure`. |
 | Défaillance | Binaire, ON si panne de sonde ou de chauffage. |
-| Poêle à bois : anticipation | Binaire (si un poêle est renseigné), ON quand le poêle est allumé et la pièce reste sous le seuil depuis le délai réglé. |
 | Vanne qui ne suit pas | Binaire (si les positions réelles des vannes sont renseignées), ON si une vanne reste à plus de 10 % de sa consigne pendant le délai réglé. |
 | `number` (configuration) | Coefficients appris, offsets, delta consigne, consignes des préréglages. |
 | Bouton « Réinitialiser l'apprentissage » | Repart des coefficients par défaut. |
@@ -186,24 +183,6 @@ Certaines vannes sur pile mettent **jusqu'à environ 30 minutes** entre l'ordre 
 - **Offset chauffe / froid** : pourcentage ajouté à la puissance calculée (0 par défaut), pour compenser une pièce structurellement trop froide ou trop chaude.
 - Ces réglages **ne changent jamais seuls** (contrairement aux coefficients, qui sont appris) et s'appliquent immédiatement.
 
-#### Poêle à bois
-
-Dans **Configurer → Poêle à bois**, tu choisis un interrupteur (`input_boolean`, `switch`…) qui indique que le poêle est allumé.
-
-| Champ | Rôle |
-|---|---|
-| Poêle à bois allumé (interrupteur) | Facultatif. Activé = le poêle chauffe la pièce. |
-| Seuil d'anticipation | Température de la pièce sous laquelle on anticipe (21 °C par défaut). |
-| Durée sous le seuil avant d'anticiper | 10 minutes par défaut. |
-
-**Poêle allumé.** La zone passe en **pause** (statut `stove`) : elle ne demande plus rien, son mode, son préréglage et ses coefficients appris sont conservés, et le cycle interrompu n'est pas pris en compte pour l'apprentissage. Les vannes se ferment à **0 %, sans aucune contrainte** (« ne jamais fermer » et « garder ouvert » sont ignorés). Pendant la pause, la sonde n'est pas surveillée.
-
-**Pièce qui se refroidit.** Si la température reste sous le seuil pendant la durée réglée, l'indicateur **Poêle à bois : anticipation** s'active et les vannes s'ouvrent déjà (ouverture maximale en mode proportionnel, ouverture fixe sinon), **sans relancer le thermostat**. Si la température remonte au-dessus du seuil, elles se referment.
-
-**Poêle éteint** (l'interrupteur repasse à OFF) : la zone **reprend toute seule**, avec son mode et son préréglage d'avant. Il n'y a rien à remettre.
-
-L'intégration ne pose pas de question sur ton téléphone : branche une automatisation sur l'indicateur d'anticipation, par exemple pour demander « Le poêle est-il éteint ? » et remettre l'interrupteur à OFF si oui (voir l'exemple plus bas).
-
 #### Notifications de défaillance
 
 Dans **Configurer → Notifications de défaillance** (zones et gestion chaudière) :
@@ -214,6 +193,14 @@ Dans **Configurer → Notifications de défaillance** (zones et gestion chaudiè
 | Message en cas de défaillance | Texte libre. Variables : `$nom` (nom de l'entrée) et `$cause` (cause). Vide = `$nom : $cause`. |
 
 Une notification part **une fois** à chaque nouvelle défaillance, quand elle dure depuis plus de 5 minutes (pour éviter les faux messages au démarrage), avec le nom de l'entrée en titre. Elle repart si la défaillance disparaît puis revient. Défaillances surveillées : *zone* : sonde de température absente ou périmée, chauffage qui ne chauffe pas, vanne qui ne suit pas ; *chaudière* : sonde d'eau absente ou périmée, coupure de sécurité.
+
+### 1 bis. Zone combinée (Chaudière + Climatisation)
+
+Pour une pièce chauffée à la fois par des **radiateurs (chaudière lente)** et une **PAC réversible (clim rapide)** :
+- **Chaudière (base lente)** : calcule une demande de fond asservie à la météo extérieure (fraction chaudière / loi d'eau), conditionnée à la demande réelle (arrêt immédiat dès que la consigne est atteinte). Son gain de base est recalibré doucement chaque nuit sur l'écart moyen journalier consigne/mesure (convergence en 1 à 2 semaines).
+- **Climatisation (appoint rapide)** : boucle courte de 10 à 15 minutes qui n'apprend que sa propre réactivité intérieure (sans terme météo extérieur), pour combler rapidement les écarts de température.
+- **Ventilateur Daikin** : en renseignant la clim associée, les vitesses de ventilation (`auto`, `quiet`, `1`..`5`) sont contrôlables directement depuis l'entité `climate` de Super Thermostat.
+- **Entités publiées** : `power_boiler` (pour la gestion chaudière), `power_ac` (pour la gestion clim) et `power_heat` (globale).
 
 ### 2. Fraction chaudière
 
@@ -354,49 +341,6 @@ actions:
 mode: single
 ```
 
-### Poêle à bois : demander confirmation sur le téléphone
-
-À utiliser avec l'indicateur « Poêle à bois : anticipation » de la zone (la pause de la zone et les vannes sont gérées par l'intégration) :
-
-```yaml
-alias: Poêle à bois - confirmation
-description: Quand la pièce se refroidit poêle allumé, demande si le poêle est éteint.
-triggers:
-  - trigger: state
-    entity_id: binary_sensor.sejour_poele_a_bois_anticipation
-    to: "on"
-actions:
-  - action: notify.mobile_app_telephone
-    data:
-      title: Poêle à bois
-      message: Le poêle n'est plus alimenté ?
-      data:
-        actions:
-          - action: POELE_ETEINT
-            title: Oui éteint
-          - action: POELE_REPART
-            title: Il repart !
-  - wait_for_trigger:
-      - trigger: event
-        event_type: mobile_app_notification_action
-        event_data:
-          action: POELE_ETEINT
-      - trigger: event
-        event_type: mobile_app_notification_action
-        event_data:
-          action: POELE_REPART
-    timeout: "01:00:00"
-    continue_on_timeout: false
-  - if:
-      - condition: template
-        value_template: "{{ wait.trigger.event.data.action == 'POELE_ETEINT' }}"
-    then:
-      - action: input_boolean.turn_off
-        target:
-          entity_id: input_boolean.poele_bois
-mode: restart
-```
-
 ### Fixer deux consignes
 
 ```yaml
@@ -435,7 +379,6 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 | Symptôme | Piste |
 |---|---|
 | La température de l'entité `climate` ne correspond pas à la sonde que je regarde | Regarde l'attribut `sensor_entity` de l'entité `climate` (Outils de développement → États) : c'est la sonde réellement utilisée par la zone. Elle peut différer de celle que tu consultes. |
-| La zone reste en statut `stove` | L'interrupteur « poêle à bois allumé » est encore ON. |
 | La zone reste « Au repos » | Mode Auto sans entité saison, température dans la zone morte entre les deux consignes. |
 | « Défaillance sonde » ou notification de sonde périmée | Le dernier rapport valide de la sonde a plus que « Âge max de la sonde » (attribut `sensor_age_minutes` de l'entité `climate`). Règle ce délai au-dessus du plus long intervalle entre deux rapports de ta sonde. Pour la sonde d'eau de la chaudière, le réglage équivalent est « Âge max de la sonde d'eau » (10 min par défaut). |
 | Les coefficients ne bougent pas | Auto-apprentissage désactivé, ou puissance toujours nulle ou saturée à 100 %. |
@@ -461,6 +404,7 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
+| 1.1.0 | **Nouvelle zone combinée Chaudière + Climatisation** : base lente chaudière (loi d'eau / fraction) avec recalibrage quotidien + appoint rapide clim (boucle 10 min) avec apprentissage de sa réactivité propre. **Gestion native du ventilateur Daikin** directement dans l'entité climate. **Suppression complète du poêle à bois** (désormais géré par automatisation externe). |
 | 1.0.3 | **Retour de la gestion du poêle à bois** (retirée par erreur en 1.0.2) : onglet *Poêle à bois*, zone en pause, vannes à 0 %, anticipation, indicateur et statut `stove`. Si les réglages du poêle ont été supprimés par la 1.0.2 au démarrage, il faut les ressaisir. |
 | 1.0.2 | Retrait de la gestion du poêle à bois (onglet, indicateur d'anticipation, statut `stove`) ; les anciens réglages sont supprimés automatiquement au démarrage. |
 | 1.0.1 | Sonde de la zone : coupures brèves tolérées, défaillance détectée et levée chaque minute (plus de défaillance « collée » jusqu'à la fin du cycle), attributs `sensor_entity` / `sensor_age_minutes` sur l'entité `climate`. |

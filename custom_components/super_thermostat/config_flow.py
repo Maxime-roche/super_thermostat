@@ -11,13 +11,13 @@ from homeassistant.helpers import selector as sel
 
 from .const import (
     ALLOWED_ALL, ALLOWED_COOL, ALLOWED_HEAT, CONF_AC_FRACTION, CONF_AC_MIN_ON,
-    CONF_ADJUST_INTERVAL, CONF_ALLOWED, CONF_AUTOLEARN, CONF_BURNER, CONF_CIRCULATOR,
+    CONF_ADJUST_INTERVAL, CONF_ALLOWED, CONF_ASSOCIATED_CLIMATE, CONF_AUTOLEARN, CONF_BURNER, CONF_CIRCULATOR,
     CONF_CLIMATE, CONF_COOL_SOURCES, CONF_CYCLE, CONF_FAILSAFE_POWER, CONF_FAIL_OFFSET,
     CONF_FALLBACK_TEMP, CONF_FRACTION_ENTITY, CONF_FRACTION_SOURCE, CONF_LIMIT_CYCLES,
     CONF_MAX_SENSOR_AGE, CONF_MIN_FRACTION, CONF_MIN_OFF, CONF_MIN_ON, CONF_MIN_POWER,
     CONF_MODE_DELAY, CONF_NAME, CONF_NOTIFY_MESSAGE, CONF_NOTIFY_SERVICE, CONF_OFFSET_NEXT_FULL,
     CONF_OUTDOOR_ENTITY, CONF_POST_RUN, CONF_SAFETY_MAX, CONF_SEUIL_BAS, CONF_SEUIL_HAUT,
-    CONF_SOURCES, CONF_START_DELAY, CONF_STOVE, CONF_STOVE_DELAY, CONF_STOVE_THRESHOLD,
+    CONF_SOURCES, CONF_START_DELAY,
     CONF_SUMMER, CONF_TEMP_ENTITY, CONF_THRESHOLD_HOT, CONF_TYPE, CONF_VALVES,
     CONF_VALVE_ALERT_MINUTES, CONF_VALVE_KEEP_OPEN, CONF_VALVE_LEVEL, CONF_VALVE_MIN_STEP,
     CONF_VALVE_NEVER_CLOSE, CONF_VALVE_OPEN_MAX, CONF_VALVE_OPEN_MIN, CONF_VALVE_POSITIONS,
@@ -25,6 +25,7 @@ from .const import (
     CONF_WATER_TEMP, CONF_WINDOWS, CONF_WINDOW_RESTART_DELAY, CONF_WINDOW_STOP_DELAY,
     CONF_ZONE_SEASON, DEFAULT_AC_OPTIONS, DEFAULT_BOILER_OPTIONS, DEFAULT_FRACTION_OPTIONS,
     DEFAULT_ZONE_OPTIONS, DOMAIN, TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE,
+    TYPE_ZONE_HYBRID,
 )
 
 
@@ -76,19 +77,13 @@ ZONE_SENSORS = vol.Schema(
         vol.Optional(CONF_ZONE_SEASON): sel.EntitySelector(
             sel.EntitySelectorConfig(domain=["input_boolean", "switch", "binary_sensor"])
         ),
+        vol.Optional(CONF_ASSOCIATED_CLIMATE): sel.EntitySelector(
+            sel.EntitySelectorConfig(domain="climate")
+        ),
         vol.Required(CONF_ALLOWED): ALLOWED_SELECTOR,
         vol.Required(CONF_CYCLE): _num(5, 240, 1, "min"),
         vol.Required(CONF_MAX_SENSOR_AGE): _num(5, 1440, 1, "min"),
         vol.Required(CONF_FAILSAFE_POWER): _num(0, 100, 1, "%"),
-    }
-)
-ZONE_STOVE = vol.Schema(
-    {
-        vol.Optional(CONF_STOVE): sel.EntitySelector(
-            sel.EntitySelectorConfig(domain=["input_boolean", "switch", "binary_sensor"])
-        ),
-        vol.Required(CONF_STOVE_THRESHOLD): _num(5, 30, 0.5, "°C"),
-        vol.Required(CONF_STOVE_DELAY): _num(0, 180, 1, "min"),
     }
 )
 ZONE_VALVES = vol.Schema(
@@ -194,7 +189,8 @@ AC_TUNING = vol.Schema(
     }
 )
 CLEARABLE = {
-    CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_SOURCE: "", CONF_VALVE_POSITIONS: [], CONF_VALVE_LEVEL: "", CONF_STOVE: "",
+    CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_SOURCE: "", CONF_VALVE_POSITIONS: [], CONF_VALVE_LEVEL: "",
+    CONF_ASSOCIATED_CLIMATE: "",
     CONF_NOTIFY_SERVICE: "", CONF_NOTIFY_MESSAGE: "",
     CONF_AC_FRACTION: "", CONF_SUMMER: "", CONF_ZONE_SEASON: "", CONF_COOL_SOURCES: [],
 }
@@ -204,7 +200,7 @@ class SuperThermostatConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        return self.async_show_menu(step_id="user", menu_options=["zone", "boiler", "fraction", "ac"])
+        return self.async_show_menu(step_id="user", menu_options=["zone", "zone_hybrid", "boiler", "fraction", "ac"])
 
     async def async_step_zone(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
@@ -222,6 +218,27 @@ class SuperThermostatConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
         return self.async_show_form(step_id="zone", data_schema=schema)
+
+    async def async_step_zone_hybrid(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                title=user_input[CONF_NAME],
+                data={CONF_TYPE: TYPE_ZONE_HYBRID, **user_input},
+            )
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME): str,
+                vol.Required(CONF_TEMP_ENTITY): _temp_sensor(),
+                vol.Optional(CONF_OUTDOOR_ENTITY): _temp_sensor(),
+                vol.Optional(CONF_FRACTION_ENTITY): _numeric_entity(),
+                vol.Optional(CONF_ASSOCIATED_CLIMATE): sel.EntitySelector(
+                    sel.EntitySelectorConfig(domain="climate")
+                ),
+                vol.Required(CONF_ALLOWED, default=ALLOWED_ALL): ALLOWED_SELECTOR,
+                vol.Required(CONF_CYCLE, default=10): _num(5, 60, 1, "min"),
+            }
+        )
+        return self.async_show_form(step_id="zone_hybrid", data_schema=schema)
 
     async def async_step_boiler(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if any(e.data.get(CONF_TYPE) == TYPE_BOILER for e in self._async_current_entries()):
@@ -308,8 +325,8 @@ class SuperThermostatOptionsFlow(OptionsFlow):
         if self._opts is None:
             self._opts = dict(self.config_entry.options)
         kind = self.config_entry.data[CONF_TYPE]
-        if kind == TYPE_ZONE:
-            menu = ["zone_sensors", "valves", "stove", "regulation", "windows", "notifications", "save"]
+        if kind in (TYPE_ZONE, TYPE_ZONE_HYBRID):
+            menu = ["zone_sensors", "valves", "regulation", "windows", "notifications", "save"]
         elif kind == TYPE_BOILER:
             menu = ["boiler_sensors", "tuning", "notifications", "save"]
         elif kind == TYPE_AC:
@@ -323,9 +340,6 @@ class SuperThermostatOptionsFlow(OptionsFlow):
 
     async def async_step_valves(self, user_input=None) -> ConfigFlowResult:
         return await self._form("valves", ZONE_VALVES, user_input)
-
-    async def async_step_stove(self, user_input=None) -> ConfigFlowResult:
-        return await self._form("stove", ZONE_STOVE, user_input)
 
     async def async_step_notifications(self, user_input=None) -> ConfigFlowResult:
         return await self._form("notifications", _notify_schema(self.hass), user_input)

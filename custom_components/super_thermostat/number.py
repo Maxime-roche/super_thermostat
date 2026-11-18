@@ -9,7 +9,7 @@ from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import CONF_TYPE, COOL_OFF, PRESET_LABELS, TYPE_BOILER, TYPE_ZONE
+from .const import CONF_TYPE, COOL_OFF, PRESET_LABELS, TYPE_BOILER, TYPE_ZONE, TYPE_ZONE_HYBRID
 from .entity import ControllerEntity
 
 COEFF_UNIT = "%/°C"
@@ -41,6 +41,14 @@ def _zone_specs(c) -> list[Spec]:
         ]
     specs.append(Spec("delta_order", 0, 5, 0.1, UnitOfTemperature.CELSIUS))
     return specs
+
+
+def _zone_hybrid_specs(c) -> list[Spec]:
+    return [
+        Spec("gain_boiler", 0.5, 30, 0.1, COEFF_UNIT),
+        Spec("coeff_in_ac", 1, 100, 0.1, COEFF_UNIT),
+        Spec("offset_ac", -50, 50, 1, PERCENTAGE),
+    ]
 
 
 def _preset_specs(c) -> list[tuple[Spec, str]]:
@@ -107,10 +115,11 @@ async def async_setup_entry(
     kind = entry.data[CONF_TYPE]
     specs = (
         _zone_specs(c) if kind == TYPE_ZONE
+        else _zone_hybrid_specs(c) if kind == TYPE_ZONE_HYBRID
         else BOILER_SPECS if kind == TYPE_BOILER
         else AC_SPECS
     )
     entities = [ControllerNumber(c, s) for s in specs]
-    if kind == TYPE_ZONE:
+    if kind in (TYPE_ZONE, TYPE_ZONE_HYBRID):
         entities += [ControllerNumber(c, s, name) for s, name in _preset_specs(c)]
     async_add_entities(entities)

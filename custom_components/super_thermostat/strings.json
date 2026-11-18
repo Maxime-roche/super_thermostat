@@ -5,6 +5,7 @@
         "title": "Super Thermostat",
         "menu_options": {
           "zone": "Add a zone (computes a heating %)",
+          "zone_hybrid": "Add a dual zone (Boiler base + AC boost)",
           "boiler": "Add boiler management",
           "fraction": "Add a boiler fraction (boiler / AC split)",
           "ac": "Add AC management (heating)"
@@ -24,6 +25,26 @@
           "outdoor_entity": "Optional. Without it the zone ignores the weather.",
           "allowed_modes": "Defines the modes offered by the zone (heating, cooling or both).",
           "cycle_minutes": "Recalculation period of the percentage. Also the measurement window for learning."
+        }
+      },
+      "zone_hybrid": {
+        "title": "New boiler + AC zone",
+        "data": {
+          "name": "Zone name",
+          "temperature_entity": "Indoor temperature sensor",
+          "outdoor_entity": "Outdoor temperature sensor",
+          "boiler_fraction_entity": "Boiler fraction (0-100 %)",
+          "associated_climate": "Associated AC (Daikin)",
+          "allowed_modes": "Zone type",
+          "cycle_minutes": "AC loop cycle length"
+        },
+        "data_description": {
+          "temperature_entity": "Room temperature sensor.",
+          "outdoor_entity": "Outdoor sensor used for boiler weather compensation.",
+          "boiler_fraction_entity": "Boiler power = weather loss × fraction. Empty = 100 %.",
+          "associated_climate": "AC entity (e.g. Daikin) for fast boost and fan control.",
+          "allowed_modes": "Modes offered by the zone (heating, cooling or both).",
+          "cycle_minutes": "Fast regulation loop and AC learning window (10 min recommended)."
         }
       },
       "boiler": {
@@ -98,8 +119,7 @@
           "fraction_source": "Reference temperature",
           "ac_entities": "AC, sources and fraction",
           "ac_tuning": "Timings",
-          "save": "Save and close",
-          "stove": "Wood stove"
+          "save": "Save and close"
         }
       },
       "zone_sensors": {
@@ -113,7 +133,8 @@
           "max_sensor_age": "Max sensor age before failure",
           "failsafe_power": "Power on sensor failure",
           "boiler_fraction_entity": "Boiler fraction (0-100 %)",
-          "season_entity": "Season entity (on = summer = cooling)"
+          "season_entity": "Season entity (on = summer = cooling)",
+          "associated_climate": "Associated AC (fan speed control)"
         },
         "data_description": {
           "temperature_entity": "Room temperature sensor: sensor, input_number, number, weather or climate.",
@@ -123,7 +144,8 @@
           "max_sensor_age": "With no new sensor value for this long, the zone goes into 'sensor failure'.",
           "failsafe_power": "0 = the zone requests nothing if the sensor is missing.",
           "boiler_fraction_entity": "Boiler power = heating power × fraction. Empty = 100 %.",
-          "season_entity": "Auto mode: when on (summer) the zone cools, otherwise it heats. Empty = the sense follows the temperature (below the heating setpoint: heat; above the cooling setpoint: cool; in between: dead band)."
+          "season_entity": "Auto mode: when on (summer) the zone cools, otherwise it heats. Empty = the sense follows the temperature (below the heating setpoint: heat; above the cooling setpoint: cool; in between: dead band).",
+          "associated_climate": "Optional AC entity (e.g. Daikin) to view and control fan speed directly on this thermostat."
         }
       },
       "valves": {
@@ -155,19 +177,6 @@
           "valve_min_step": "The valve is only changed when the wanted opening differs from the current one by at least this percentage (full closing is always applied).",
           "valve_never_close": "When demand is 0 the valve goes to the minimum opening instead of closing. Takes priority over 'keep open'.",
           "valve_keep_open": "When demand drops to 0 the valve stays as is unless another zone calls for boiler heat, then it closes. Off: closes immediately."
-        }
-      },
-      "stove": {
-        "title": "Wood stove",
-        "data": {
-          "stove_entity": "Wood stove lit (switch)",
-          "stove_threshold": "Anticipation threshold",
-          "stove_delay": "Time below the threshold before anticipating"
-        },
-        "data_description": {
-          "stove_entity": "Switch (input_boolean…) turned on when the wood stove is lit. The zone then pauses (mode, preset and learning kept) and the valves close to 0 % with no constraint. When it turns off the zone resumes by itself.",
-          "stove_threshold": "Stove on and room temperature below this threshold: the integration anticipates, the valves open already without restarting the thermostat.",
-          "stove_delay": "Time below the threshold before anticipating. The 'Wood stove: anticipation' indicator then turns on (handy to send yourself a notification)."
         }
       },
       "notifications": {
@@ -307,6 +316,9 @@
       "power_boiler": {
         "name": "Boiler power"
       },
+      "power_ac": {
+        "name": "AC demand"
+      },
       "ac_setpoint": {
         "name": "Setpoint sent to the AC"
       },
@@ -345,8 +357,7 @@
           "off": "Off",
           "suspended": "Suspended (opening)",
           "sensor_failure": "Sensor failure",
-          "actuator_failure": "Heating failure",
-          "stove": "Wood stove (zone paused)"
+          "actuator_failure": "Heating failure"
         }
       },
       "demand": {
@@ -382,12 +393,18 @@
       },
       "circulator": {
         "name": "Circulator"
-      },
-      "stove_anticipation": {
-        "name": "Wood stove: anticipation"
       }
     },
     "number": {
+      "gain_boiler": {
+        "name": "Boiler base gain"
+      },
+      "coeff_in_ac": {
+        "name": "AC boost coefficient (indoor)"
+      },
+      "offset_ac": {
+        "name": "AC offset"
+      },
       "coeff_in_heat": {
         "name": "Heating coefficient (indoor)"
       },

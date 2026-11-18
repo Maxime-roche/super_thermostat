@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
     AC_STATUSES, BOILER_STATUSES, CONF_TYPE, CONF_VALVE_PROPORTIONAL, CONF_VALVE_SOURCE,
-    CONF_VALVES, TYPE_AC, TYPE_BOILER, TYPE_ZONE, ZONE_STATUSES,
+    CONF_VALVES, TYPE_AC, TYPE_BOILER, TYPE_ZONE, TYPE_ZONE_HYBRID, ZONE_STATUSES,
 )
 from .entity import ControllerEntity
 
@@ -48,7 +48,8 @@ async def async_setup_entry(
 ) -> None:
     c = entry.runtime_data
     entities: list[ControllerSensor] = []
-    if entry.data[CONF_TYPE] == TYPE_ZONE:
+    kind = entry.data[CONF_TYPE]
+    if kind in (TYPE_ZONE, TYPE_ZONE_HYBRID):
         if c.has_heat:
             entities.append(ControllerSensor(c, "power_heat", lambda: c.power_heat, unit=PERCENTAGE))
             entities.append(
@@ -57,6 +58,8 @@ async def async_setup_entry(
                     attrs_fn=lambda: {"fraction": c.fraction},
                 )
             )
+        if kind == TYPE_ZONE_HYBRID:
+            entities.append(ControllerSensor(c, "power_ac", lambda: c.power_ac, unit=PERCENTAGE))
         if c.has_cool:
             entities.append(ControllerSensor(c, "power_cool", lambda: c.power_cool, unit=PERCENTAGE))
         if c.cfg.get(CONF_VALVES):

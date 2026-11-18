@@ -7,15 +7,20 @@ from homeassistant.core import HomeAssistant
 
 from .boiler import BoilerController
 from .ac import ACController
-from .const import CONF_TYPE, TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE
+from .const import CONF_TYPE, TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE, TYPE_ZONE_HYBRID
 from .migration import migrate_valve_options
 from .fraction import FractionController
 from .zone import ZoneController
+from .zone_hybrid import ZoneHybridController
 
-type SuperThermostatConfigEntry = ConfigEntry[ZoneController | BoilerController | FractionController | ACController]
+type SuperThermostatConfigEntry = ConfigEntry[ZoneController | ZoneHybridController | BoilerController | FractionController | ACController]
 
 PLATFORMS = {
     TYPE_ZONE: [
+        Platform.CLIMATE, Platform.SENSOR, Platform.BINARY_SENSOR,
+        Platform.NUMBER, Platform.BUTTON,
+    ],
+    TYPE_ZONE_HYBRID: [
         Platform.CLIMATE, Platform.SENSOR, Platform.BINARY_SENSOR,
         Platform.NUMBER, Platform.BUTTON,
     ],
@@ -29,13 +34,14 @@ PLATFORMS = {
 
 async def async_setup_entry(hass: HomeAssistant, entry: SuperThermostatConfigEntry) -> bool:
     kind = entry.data[CONF_TYPE]
-    if kind == TYPE_ZONE:
+    if kind in (TYPE_ZONE, TYPE_ZONE_HYBRID):
         # anciennes vannes -> champ libre « demande suivie » (une fois, avant d'écouter les changements)
         migrated = migrate_valve_options(dict(entry.data), dict(entry.options))
         if migrated is not None:
             hass.config_entries.async_update_entry(entry, options=migrated)
     controller_class = {
-        TYPE_ZONE: ZoneController, TYPE_BOILER: BoilerController,
+        TYPE_ZONE: ZoneController, TYPE_ZONE_HYBRID: ZoneHybridController,
+        TYPE_BOILER: BoilerController,
         TYPE_FRACTION: FractionController, TYPE_AC: ACController,
     }[kind]
     controller = controller_class(hass, entry)

@@ -35,7 +35,7 @@ class ZoneParams:
 
     cycle_min: float = 60.0
     min_power: float = 5.0  # minCycleDuration (%)
-    limit_cycles: bool = False  # « limiter les cycles marche/arrêt » (stove_boiler)
+    limit_cycles: bool = False  # « limiter les cycles marche/arrêt »
     autolearn: bool = True
     offset_heat: float = 0.0
     offset_cool: float = 0.0

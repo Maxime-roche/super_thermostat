@@ -300,6 +300,7 @@ class SuperThermostatOptionsFlow(OptionsFlow):
     def _current(self) -> dict[str, Any]:
         defaults = {
             TYPE_ZONE: DEFAULT_ZONE_OPTIONS,
+            TYPE_ZONE_HYBRID: DEFAULT_ZONE_OPTIONS,  # mêmes valeurs par défaut que zone simple
             TYPE_BOILER: DEFAULT_BOILER_OPTIONS,
             TYPE_FRACTION: DEFAULT_FRACTION_OPTIONS,
             TYPE_AC: DEFAULT_AC_OPTIONS,

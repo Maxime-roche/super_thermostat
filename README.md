@@ -235,15 +235,17 @@ Une seule entrée.
 |---|---|
 | Relais du brûleur, relais du circulateur | `switch` ou `input_boolean`. |
 | Sonde de température d'eau | Température de la chaudière. |
-| Sources de puissance | Entités numériques additionnées et plafonnées à 100 % : en général les capteurs « Puissance chaudière » des zones. Tu peux en ajouter d'autres à la main. |
+| Sources de puissance | Entités numériques (en général les capteurs « Puissance chaudière » des zones) qui conditionnent la chauffe : dès qu'au moins une source demande (> 0 %), la chaudière démarre. |
+| Fraction chaudière (loi d'eau) | Facultatif : entité 0-100 % régissant la loi d'eau de la chaudière. Si vide, détection automatique de l'entrée Fraction chaudière de Super Thermostat. |
+| Réguler l'eau selon la fraction chaudière | Interrupteur d'option (activé par défaut) : **Activé** = la température d'eau suit la loi d'eau météo régie par la fraction chaudière (idéal avec des vannes thermostatiques). **Désactivé** = la température d'eau suit la somme des puissances des zones. |
 
 **Configurer → Temporisations et sécurité** : post-circulation du circulateur (0 min), durée mini brûleur allumé (2 min) et éteint (2 min), température de sécurité (85 °C), âge max de la sonde d'eau (10 min).
 
 **Configurer → Notifications de défaillance** : service de notification et message (voir [Notifications](#notifications-de-défaillance)) pour la sonde d'eau absente et la coupure de sécurité.
 
-**Entités** : Demande totale, Seuil bas eau, Seuil haut eau, Statut (`disabled`, `idle`, `circulating`, `heating`, `water_sensor_failure`, `safety_cutoff`), Brûleur, Circulateur, interrupteurs **Gestion active** et **Simulation**, et trois réglages :
+**Entités** : Demande totale (avec attributs `sources`, `fraction` et `use_fraction`), Seuil bas eau, Seuil haut eau, Statut (`disabled`, `idle`, `circulating`, `heating`, `water_sensor_failure`, `safety_cutoff`), Brûleur, Circulateur, interrupteurs **Gestion active**, **Simulation**, et **Loi d'eau (fraction chaudière)**, ainsi que trois réglages :
 
-- **Température d'eau à 1 %** (20 °C), **à 100 %** (72 °C) et **décalage seuil bas / haut** (5 °C).
+- **Température d'eau à 0 %** (20 °C), **à 100 %** (72 °C) et **décalage seuil bas / haut** (5 °C).
 
 ### 4. Gestion clim
 
@@ -291,10 +293,13 @@ bornée entre 0 et 100. Le premier terme corrige l'écart ; le second **anticipe
 
 ### Chaudière
 
-- Demande = somme des sources, plafonnée à 100 %.
-- Le circulateur s'allume dès que la demande est positive (et reste allumé la durée de post-circulation).
-- Le seuil bas d'eau varie linéairement de la température à 1 % jusqu'à (température à 100 % − décalage) ; le seuil haut = seuil bas + décalage. Avec 20 °C, 72 °C et 5 °C : à 1 %, 20 à 25 °C ; à 100 %, 67 à 72 °C.
-- Le brûleur s'allume sous le seuil bas, s'éteint au-dessus du seuil haut et ne change pas entre les deux. Il s'éteint immédiatement s'il n'y a plus de demande, si la sonde d'eau est muette ou si la température de sécurité est atteinte.
+- **Demande conditionnelle** = somme des puissances des sources, plafonnée à 100 %.
+- **Conditionnement** : le circulateur s'allume dès que la demande est positive (`demand > 0`) et reste allumé pendant la durée de post-circulation quand la demande retombe à 0. Sans demande, le brûleur et le circulateur restent éteints.
+- **Loi d'eau et température d'eau** : la consigne de température d'eau dépend de l'interrupteur **Loi d'eau (fraction chaudière)** :
+  - **Activé (par défaut)** : la consigne suit la **fraction chaudière** (0 à 100 %). Les radiateurs modulent leur débit via leurs vannes thermostatiques au pourcentage de chaque pièce, pendant que la chaudière délivre une eau à température adaptée à la météo extérieure.
+  - **Désactivé** : la consigne suit la **demande cumulée** des thermostats (somme des puissances).
+- **Plage de régulation** : le seuil bas d'eau varie linéairement de la température à 0 % (`t_min`) jusqu'à (température à 100 % − décalage) ; le seuil haut = seuil bas + décalage. Avec 20 °C, 72 °C et 5 °C : à 0 %, 20 à 25 °C ; à 100 %, 67 à 72 °C.
+- Le brûleur s'allume sous le seuil bas, s'éteint au-dessus du seuil haut et conserve son état dans la bande d'hystérésis (en respectant les durées minimales de marche et d'arrêt). Il s'éteint immédiatement s'il n'y a plus de demande (`demand == 0`), si la sonde d'eau est muette ou si la température de sécurité est atteinte.
 
 ### Clim
 
@@ -404,7 +409,7 @@ Les attributs `sources`, `fraction`, `climate_mode`, `setpoint_computed` et `sec
 
 | Version | Changements |
 |---|---|
-| 1.1.0 | **Nouvelle zone combinée Chaudière + Climatisation** : base lente chaudière (loi d'eau / fraction) avec recalibrage quotidien + appoint rapide clim (boucle 10 min) avec apprentissage de sa réactivité propre. **Gestion native du ventilateur Daikin** directement dans l'entité climate. **Suppression complète du poêle à bois** (désormais géré par automatisation externe). |
+| 1.1.0 | **Loi d'eau chaudière régie par la fraction** : la température d'eau est pilotée par la loi d'eau météo (fraction chaudière), les sources de puissance conditionnant le démarrage/arrêt. **Interrupteur de choix du mode de chauffe de la chaudière** (suivi de la fraction chaudière ou suivi des puissances cumulées) sous forme d'option et d'entité `switch`. **Nouvelle zone combinée Chaudière + Climatisation** : base lente chaudière avec recalibrage quotidien + appoint rapide clim (boucle 10 min). **Gestion native du ventilateur Daikin** directement dans l'entité climate. **Suppression complète du poêle à bois** (géré par automatisation externe). |
 | 1.0.3 | **Retour de la gestion du poêle à bois** (retirée par erreur en 1.0.2) : onglet *Poêle à bois*, zone en pause, vannes à 0 %, anticipation, indicateur et statut `stove`. Si les réglages du poêle ont été supprimés par la 1.0.2 au démarrage, il faut les ressaisir. |
 | 1.0.2 | Retrait de la gestion du poêle à bois (onglet, indicateur d'anticipation, statut `stove`) ; les anciens réglages sont supprimés automatiquement au démarrage. |
 | 1.0.1 | Sonde de la zone : coupures brèves tolérées, défaillance détectée et levée chaque minute (plus de défaillance « collée » jusqu'à la fin du cycle), attributs `sensor_entity` / `sensor_age_minutes` sur l'entité `climate`. |

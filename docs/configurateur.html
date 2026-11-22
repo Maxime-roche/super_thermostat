@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Configurateur de loi d'eau — Super Thermostat</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light dark;--bg:Canvas;--fg:CanvasText;--muted:color-mix(in srgb,var(--fg) 65%,transparent);--line:color-mix(in srgb,var(--fg) 18%,transparent);--panel:color-mix(in srgb,var(--fg) 4%,var(--bg));--accent:#2676d2;--blue:#2676d2;--orange:#d97706;--green:#16834a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);line-height:1.5}.wrap{max-width:1120px;margin:auto;padding:28px 18px 60px}h1{font-size:clamp(1.7rem,4vw,2.35rem);line-height:1.15;margin:0 0 8px}h2{font-size:1.18rem;margin:0 0 14px}p{margin:6px 0 14px}.intro,.muted,.hint{color:var(--muted)}.layout{display:grid;grid-template-columns:minmax(280px,390px) minmax(0,1fr);gap:18px;align-items:start}.panel{border:1px solid var(--line);border-radius:14px;padding:18px;background:var(--panel);margin:16px 0}.group{padding:13px 0;border-top:1px solid var(--line)}.group:first-of-type{border-top:0;padding-top:0}.field-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:7px}.field-head label{font-weight:600}.number{width:92px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;text-align:right}input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}.hint{font-size:.83rem;margin-top:4px}.chart-wrap{overflow:hidden}.chart{width:100%;height:auto;display:block}.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.88rem;color:var(--muted);margin:8px 0 0}.key{display:inline-block;width:20px;height:3px;vertical-align:middle;margin-right:6px;background:var(--blue)}.key.orange{background:var(--orange)}.key.green{background:var(--green)}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}.metric{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg)}.metric small{display:block;color:var(--muted)}.metric strong{font-size:1.35rem;font-variant-numeric:tabular-nums}.table-scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}th:first-child,td:first-child{text-align:left}th{font-size:.85rem;color:var(--muted);font-weight:600}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}button{border:1px solid var(--line);border-radius:9px;padding:9px 13px;background:var(--bg);color:var(--fg);font:inherit;cursor:pointer}button.primary{background:var(--accent);border-color:var(--accent);color:white}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--line);padding:12px;border-radius:9px;font-size:.88rem}.note{border-left:3px solid var(--orange);padding:8px 12px;color:var(--muted);font-size:.9rem}.footer{font-size:.85rem;color:var(--muted);margin-top:24px}a{color:var(--accent)}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.wrap{padding:20px 13px 40px}}
+@media(max-width:420px){.metrics{grid-template-columns:1fr 1fr}.panel{padding:14px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Configurateur de loi d'eau</h1>
+  <p class="intro">Simule l'effet des réglages de fraction chaudière et de loi d'eau avant de les reporter dans Super Thermostat. Les calculs et graphiques se mettent à jour à chaque modification.</p>
+  <div class="layout">
+    <section class="panel" aria-label="Paramètres">
+      <h2>1. Fraction chaudière</h2>
+      <div class="group">
+        <div class="field-head"><label for="outCold">Température extérieure basse (100 %)</label><input class="number" id="outColdN" type="number" step="0.5" value="-3"></div>
+        <input id="outCold" type="range" min="-20" max="10" step="0.5" value="-3">
+        <div class="hint">En dessous de cette température, la fraction brute vaut 100 %.</div>
+      </div>
+      <div class="group">
+        <div class="field-head"><label for="outWarm">Température extérieure haute (0 %)</label><input class="number" id="outWarmN" type="number" step="0.5" value="9"></div>
+        <input id="outWarm" type="range" min="-5" max="25" step="0.5" value="9">
+        <div class="hint">Au-dessus de cette température, la fraction brute vaut 0 %.</div>
+      </div>
+      <div class="group">
+        <div class="field-head"><label for="minFrac">Fraction minimale d'utilisation</label><input class="number" id="minFracN" type="number" min="0" max="100" step="1" value="15"></div>
+        <input id="minFrac" type="range" min="0" max="100" step="1" value="15">
+        <div class="hint">Sous ce pourcentage, la fraction effective passe à 0 %.</div>
+      </div>
+      <h2 style="margin-top:22px">2. Loi d'eau</h2>
+      <div class="group">
+        <div class="field-head"><label for="waterMin">Température d'eau à 0 %</label><input class="number" id="waterMinN" type="number" step="0.5" value="20"></div>
+        <input id="waterMin" type="range" min="10" max="60" step="0.5" value="20">
+      </div>
+      <div class="group">
+        <div class="field-head"><label for="waterMax">Température d'eau à 100 %</label><input class="number" id="waterMaxN" type="number" step="0.5" value="72"></div>
+        <input id="waterMax" type="range" min="25" max="90" step="0.5" value="72">
+      </div>
+      <div class="group">
+        <div class="field-head"><label for="offset">Décalage seuil bas / haut</label><input class="number" id="offsetN" type="number" min="0" max="30" step="0.5" value="5"></div>
+        <input id="offset" type="range" min="0" max="30" step="0.5" value="5">
+        <div class="hint">Le seuil haut est plafonné à la température d'eau à 100 %.</div>
+      </div>
+      <div class="actions"><button id="reset">Réinitialiser les valeurs par défaut</button></div>
+    </section>
+    <section>
+      <div class="panel">
+        <h2>Résultat à la température extérieure choisie</h2>
+        <div class="field-head"><label for="outsideNow">Température extérieure simulée</label><input class="number" id="outsideNowN" type="number" step="0.5" value="3"></div>
+        <input id="outsideNow" type="range" min="-15" max="25" step="0.5" value="3">
+        <div class="metrics">
+          <div class="metric"><small>Fraction effective</small><strong id="fractionResult">50 %</strong></div>
+          <div class="metric"><small>Seuil bas eau</small><strong id="lowResult">46 °C</strong></div>
+          <div class="metric"><small>Seuil haut eau</small><strong id="highResult">51 °C</strong></div>
+        </div>
+        <p class="hint" id="fractionExplanation"></p>
+      </div>
+      <div class="panel chart-wrap">
+        <h2>Courbes de régulation</h2>
+        <svg id="chart" class="chart" viewBox="0 0 760 440" role="img" aria-label="Graphiques de fraction chaudière et de seuils de température d'eau en fonction de la température extérieure"></svg>
+        <div class="legend"><span><i class="key"></i>Fraction chaudière</span><span><i class="key green"></i>Seuil bas eau</span><span><i class="key orange"></i>Seuil haut eau</span></div>
+        <p class="hint">La fraction effective tient compte de la fraction minimale d'utilisation. Les seuils d'eau sont calculés à partir de cette fraction.</p>
+      </div>
+      <div class="panel">
+        <h2>Tableau de simulation</h2>
+        <div class="table-scroll"><table><thead><tr><th>Extérieur</th><th>Fraction</th><th>Seuil bas</th><th>Seuil haut</th></tr></thead><tbody id="resultsTable"></tbody></table></div>
+      </div>
+      <div class="panel">
+        <h2>Récapitulatif des réglages</h2>
+        <p class="hint">Ce récapitulatif est une aide à la saisie. Il ne modifie pas automatiquement Home Assistant.</p>
+        <pre id="summary"></pre>
+        <div class="actions"><button class="primary" id="copy">Copier le récapitulatif</button></div>
+        <p class="hint" id="copyStatus" aria-live="polite"></p>
+      </div>
+    </section>
+  </div>
+  <div class="note">Le simulateur représente la logique décrite dans la documentation. Vérifie que les paramètres et formules correspondent bien à la version de l'intégration installée. Les sécurités, temporisations, demandes des zones et caractéristiques hydrauliques réelles ne sont pas simulées.</div>
+  <p class="footer">Super Thermostat · Outil de simulation local · Aucune donnée n'est envoyée à un serveur.</p>
+</main>
+<script>
+(() => {
+  const defaults={outCold:-3,outWarm:9,minFrac:15,waterMin:20,waterMax:72,offset:5,outsideNow:3};
+  const ids=['outCold','outWarm','minFrac','waterMin','waterMax','offset','outsideNow'];
+  const $=id=>document.getElementById(id);
+  const fmt=n=>Number(n).toLocaleString('fr-BE',{maximumFractionDigits:1});
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  function val(id){return Number($(id).value)}
+  function set(id,v){$(id).value=v;$(id+'N').value=v}
+  function params(){return Object.fromEntries(ids.map(id=>[id,val(id)]))}
+  function calculate(out,p){
+    const span=p.outWarm-p.outCold;
+    const raw=span>0?clamp((p.outWarm-out)/span,0,1):0;
+    const fraction=raw*100 < p.minFrac ? 0 : raw;
+    const low=p.waterMin+fraction*(p.waterMax-p.waterMin);
+    const high=Math.min(low+p.offset,p.waterMax);
+    return {raw,fraction,low,high};
+  }
+  function path(points){return points.map((pt,i)=>(i?'L':'M')+pt[0].toFixed(1)+','+pt[1].toFixed(1)).join(' ')}
+  function draw(p){
+    const svg=$('chart'), W=760, left=66,right=22, plotW=W-left-right;
+    const top1=42,h1=115,top2=240,h2=145;
+    const xMin=Math.min(-15,Math.floor((p.outCold-5)/5)*5), xMax=Math.max(25,Math.ceil((p.outWarm+5)/5)*5);
+    const xs=x=>left+(x-xMin)/(xMax-xMin)*plotW;
+    const y1=v=>top1+h1-(v/100)*h1;
+    const y2=v=>top2+h2-(v-10)/80*h2;
+    let s='';
+    const line=(x1,y1v,x2,y2v,stroke,dash='')=>`<line x1="${x1}" y1="${y1v}" x2="${x2}" y2="${y2v}" stroke="${stroke}" stroke-width="1" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+    const text=(x,y,t,anchor='middle',size=12)=>`<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="${size}" fill="currentColor">${t}</text>`;
+    s+=text(left,20,'Fraction chaudière (%)','start',14);
+    s+=text(left,218,'Température d’eau (°C)','start',14);
+    for(let i=0;i<=4;i++){
+      const pct=i*25, yy=y1(pct);s+=line(left,yy,W-right,yy,'currentColor','3 5');s+=text(left-10,yy+4,String(pct),'end',11);
+      const temp=10+i*20, yy2=y2(temp);s+=line(left,yy2,W-right,yy2,'currentColor','3 5');s+=text(left-10,yy2+4,String(temp),'end',11);
+    }
+    const ticks=[];for(let t=Math.ceil(xMin/5)*5;t<=xMax;t+=5)ticks.push(t);
+    ticks.forEach(t=>{const x=xs(t);s+=line(x,top1,x,top1+h1,'currentColor','2 6');s+=line(x,top2,x,top2+h2,'currentColor','2 6');s+=text(x,top2+h2+22,String(t), 'middle',11)});
+    s+=line(left,top1+h1,W-right,top1+h1,'currentColor');s+=line(left,top2+h2,W-right,top2+h2,'currentColor');
+    const fpts=[],lpts=[],hpts=[];
+    for(let t=xMin;t<=xMax+0.001;t+=(xMax-xMin)/180){const r=calculate(t,p);fpts.push([xs(t),y1(r.fraction*100)]);lpts.push([xs(t),y2(r.low)]);hpts.push([xs(t),y2(r.high)]);}
+    s+=`<path d="${path(fpts)}" fill="none" stroke="#2676d2" stroke-width="3" stroke-linejoin="round"/>`;
+    s+=`<path d="${path(lpts)}" fill="none" stroke="#16834a" stroke-width="3" stroke-linejoin="round"/>`;
+    s+=`<path d="${path(hpts)}" fill="none" stroke="#d97706" stroke-width="3" stroke-linejoin="round"/>`;
+    const now=clamp(p.outsideNow,xMin,xMax), r=calculate(p.outsideNow,p), xx=xs(now);
+    s+=line(xx,top1,xx,top1+h1,'#2676d2','5 4');s+=line(xx,top2,xx,top2+h2,'#2676d2','5 4');
+    s+=`<circle cx="${xx}" cy="${y1(r.fraction*100)}" r="5" fill="#2676d2" stroke="Canvas" stroke-width="2"/>`;
+    s+=`<circle cx="${xx}" cy="${y2(r.low)}" r="5" fill="#16834a" stroke="Canvas" stroke-width="2"/>`;
+    s+=`<circle cx="${xx}" cy="${y2(r.high)}" r="5" fill="#d97706" stroke="Canvas" stroke-width="2"/>`;
+    s+=text(left+plotW/2,top1+h1+23,'Température extérieure (°C)','middle',11);
+    s+=text(left+plotW/2,top2+h2+42,'Température extérieure (°C)','middle',11);
+    svg.innerHTML=s;
+  }
+  function update(){
+    const p=params();
+    if(p.outWarm<=p.outCold){$('fractionExplanation').textContent='Attention : le seuil extérieur haut doit être supérieur au seuil extérieur bas.';$('fractionResult').textContent='—';$('lowResult').textContent='—';$('highResult').textContent='—';$('resultsTable').innerHTML='';return;}
+    if(p.waterMax<=p.waterMin){$('fractionExplanation').textContent='Attention : la température d’eau à 100 % doit être supérieure à celle à 0 %.';$('fractionResult').textContent='—';$('lowResult').textContent='—';$('highResult').textContent='—';$('resultsTable').innerHTML='';return;}
+    const r=calculate(p.outsideNow,p);
+    $('fractionResult').textContent=fmt(r.fraction*100)+' %';$('lowResult').textContent=fmt(r.low)+' °C';$('highResult').textContent=fmt(r.high)+' °C';
+    $('fractionExplanation').textContent=r.raw*100<p.minFrac&&r.raw>0?'La fraction brute est inférieure au minimum configuré : la fraction effective est donc ramenée à 0 %.':`Fraction brute : ${fmt(r.raw*100)} %. La fraction effective est utilisée pour calculer les seuils d'eau.`;
+    const temps=[-5,0,5,10,15];
+    $('resultsTable').innerHTML=temps.map(t=>{const x=calculate(t,p);return `<tr><td>${fmt(t)} °C</td><td>${fmt(x.fraction*100)} %</td><td>${fmt(x.low)} °C</td><td>${fmt(x.high)} °C</td></tr>`}).join('');
+    $('summary').textContent=[
+      'Fraction chaudière',`Température extérieure basse (100 %) : ${fmt(p.outCold)} °C`,`Température extérieure haute (0 %) : ${fmt(p.outWarm)} °C`,`Fraction minimale d'utilisation : ${fmt(p.minFrac)} %`,'',
+      'Loi d’eau',`Température d'eau à 0 % : ${fmt(p.waterMin)} °C`,`Température d'eau à 100 % : ${fmt(p.waterMax)} °C`,`Décalage seuil bas / haut : ${fmt(p.offset)} °C`,'',
+      `Simulation à ${fmt(p.outsideNow)} °C extérieur`,`Fraction effective : ${fmt(r.fraction*100)} %`,`Seuil bas eau : ${fmt(r.low)} °C`,`Seuil haut eau : ${fmt(r.high)} °C`
+    ].join('\n');
+    draw(p);
+  }
+  ids.forEach(id=>{
+    $(id).addEventListener('input',()=>{ $(id+'N').value=$(id).value; update(); });
+    $(id+'N').addEventListener('input',()=>{ const n=Number($(id+'N').value); if(Number.isFinite(n)){ $(id).value=n; update(); }});
+    $(id+'N').addEventListener('change',()=>{const min=Number($(id).min),max=Number($(id).max);set(id,clamp(val(id),min,max));update()});
+  });
+  $('reset').addEventListener('click',()=>{Object.entries(defaults).forEach(([id,v])=>set(id,v));update()});
+  $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('summary').textContent);$('copyStatus').textContent='Récapitulatif copié.'}catch(e){$('copyStatus').textContent='Copie automatique indisponible dans ce navigateur. Sélectionne le texte du récapitulatif pour le copier.'}});
+  update();
+})();
+</script>
+</body>
+</html>

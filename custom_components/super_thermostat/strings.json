@@ -54,13 +54,15 @@
           "burner_entity": "Burner relay",
           "circulator_entity": "Circulator relay",
           "water_temperature_entity": "Water temperature sensor",
-          "power_sources": "Power sources (summed, capped at 100 %)"
+          "power_sources": "Power sources (trigger heating)",
+          "boiler_fraction_entity": "Boiler fraction (heating curve)"
         },
         "data_description": {
           "burner_entity": "Relay (switch) that turns the burner on.",
           "circulator_entity": "Circulator relay (switch), on as soon as there is demand.",
           "water_temperature_entity": "Boiler water temperature sensor.",
-          "power_sources": "sensor / number / input_number entities: a zone, or any other source you add."
+          "power_sources": "sensor / number / input_number entities: as soon as at least one source demands heat (> 0 %), the boiler regulates its water temperature.",
+          "boiler_fraction_entity": "Optional. Boiler fraction entity (0-100 %) controlling the heating curve (water temperature between t_min and t_max). If left blank, automatic detection of fraction entry."
         }
       },
       "fraction": {
@@ -228,13 +230,15 @@
           "burner_entity": "Burner relay",
           "circulator_entity": "Circulator relay",
           "water_temperature_entity": "Water temperature sensor",
-          "power_sources": "Power sources (summed, capped at 100 %)"
+          "power_sources": "Power sources (trigger heating)",
+          "boiler_fraction_entity": "Boiler fraction (heating curve)"
         },
         "data_description": {
           "burner_entity": "Relay (switch) that turns the burner on.",
           "circulator_entity": "Circulator relay (switch), on as soon as there is demand.",
           "water_temperature_entity": "Boiler water temperature sensor.",
-          "power_sources": "sensor / number / input_number entities: a zone, or any other source you add."
+          "power_sources": "sensor / number / input_number entities: as soon as at least one source demands heat (> 0 %), the boiler regulates its water temperature.",
+          "boiler_fraction_entity": "Optional. Boiler fraction entity (0-100 %) controlling the heating curve (water temperature between t_min and t_max). If left blank, automatic detection of fraction entry."
         }
       },
       "tuning": {
@@ -442,10 +446,10 @@
         "name": "Cut-off (boiler fraction)"
       },
       "t_min": {
-        "name": "Water temperature at 1 %"
+        "name": "Minimum water temperature (fraction 0 %)"
       },
       "t_max": {
-        "name": "Water temperature at 100 %"
+        "name": "Maximum water temperature (fraction 100 %)"
       },
       "offset": {
         "name": "Low / high threshold offset"

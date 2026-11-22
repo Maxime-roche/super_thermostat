@@ -148,6 +148,7 @@ BOILER_SENSORS = vol.Schema(
         vol.Required(CONF_CIRCULATOR): _relay(),
         vol.Required(CONF_WATER_TEMP): _temp_sensor(),
         vol.Required(CONF_SOURCES): _sources(),
+        vol.Optional(CONF_FRACTION_ENTITY): _numeric_entity(),
     }
 )
 BOILER_TUNING = vol.Schema(

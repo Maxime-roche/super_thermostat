@@ -11,17 +11,17 @@ def total_demand(values: Iterable[float | None]) -> float:
 
 
 def water_band(
-    demand: float, t_min: float, t_max: float, offset: float
+    fraction: float, t_min: float, t_max: float, offset: float
 ) -> tuple[float, float]:
-    """Seuils bas/haut de la température d'eau pour une demande donnée.
+    """Seuils bas/haut de la température d'eau selon la fraction chaudière (loi d'eau).
 
-    1 %   -> bas = t_min,            haut = t_min + offset
+    0 %   -> bas = t_min,            haut = t_min + offset
     100 % -> bas = t_max - offset,   haut = t_max
     (interpolation linéaire entre les deux)
     """
-    d = max(demand, 1.0)
+    f = max(0.0, min(100.0, fraction))
     span = max(t_max - offset - t_min, 0.0)
-    low = t_min + (min(d, 100.0) - 1.0) / 99.0 * span
+    low = t_min + (f / 100.0) * span
     return low, low + offset
 
 

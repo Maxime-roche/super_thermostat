@@ -132,7 +132,7 @@ async def async_setup_entry(
         entities += [
             ControllerSensor(
                 c, "demand", lambda: round(c.demand, 1), unit=PERCENTAGE,
-                attrs_fn=lambda: {"sources": c.source_values},
+                attrs_fn=lambda: {"sources": c.source_values, "fraction": c.fraction},
             ),
             ControllerSensor(
                 c, "water_low", lambda: round(c.low, 1), unit=UnitOfTemperature.CELSIUS,

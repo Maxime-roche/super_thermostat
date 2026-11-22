@@ -17,11 +17,11 @@ from homeassistant.helpers.storage import Store
 from .boiler_logic import burner_target, circulator_target, total_demand, water_band
 from .const import (
     B_CIRCULATING, B_DISABLED, B_HEATING, B_IDLE, B_SAFETY, B_WATER_FAILURE,
-    CONF_BURNER, CONF_CIRCULATOR, CONF_MIN_OFF, CONF_MIN_ON, CONF_NOTIFY_MESSAGE,
+    CONF_BURNER, CONF_CIRCULATOR, CONF_FRACTION_ENTITY, CONF_MIN_OFF, CONF_MIN_ON, CONF_NOTIFY_MESSAGE,
     CONF_NOTIFY_SERVICE, CONF_POST_RUN,
     CONF_SAFETY_MAX, CONF_SOURCES, CONF_WATER_MAX_AGE, CONF_WATER_TEMP,
     DEFAULT_BOILER_OPTIONS, DEFAULT_OFFSET, DEFAULT_T_MAX, DEFAULT_T_MIN, DOMAIN,
-    STORAGE_VERSION,
+    STORAGE_VERSION, TYPE_FRACTION,
 )
 from .helpers import read_number
 from .notify import FailureNotifier
@@ -44,6 +44,7 @@ class BoilerController:
         self.dry_run = False
 
         self.demand = 0.0
+        self.fraction = 100.0
         self.low = DEFAULT_T_MIN
         self.high = DEFAULT_T_MIN + DEFAULT_OFFSET
         self.water: float | None = None
@@ -99,6 +100,8 @@ class BoilerController:
     # -------------------------------------------------------------- lifecycle
     async def async_start(self) -> None:
         watched = [*self.cfg.get(CONF_SOURCES, []), self.cfg[CONF_WATER_TEMP]]
+        if self.cfg.get(CONF_FRACTION_ENTITY):
+            watched.append(self.cfg[CONF_FRACTION_ENTITY])
         self._unsubs.append(
             async_track_state_change_event(self.hass, watched, self._on_event)
         )
@@ -159,6 +162,23 @@ class BoilerController:
             self._circ_cmd = bool(self._actual(circ_entity))
             self._burner_since = 0.0
 
+        # Fraction chaudière : lecture de l'entité configurée ou détection automatique
+        frac_ent = self.cfg.get(CONF_FRACTION_ENTITY)
+        frac_val = read_number(self.hass, frac_ent) if frac_ent else None
+        if frac_val is not None:
+            self.fraction = max(0.0, min(100.0, frac_val))
+        else:
+            found = False
+            for e in self.hass.config_entries.async_entries(DOMAIN):
+                if e.data.get(CONF_TYPE) == TYPE_FRACTION:
+                    ctrl = getattr(e, "runtime_data", None)
+                    if ctrl is not None and hasattr(ctrl, "fraction"):
+                        self.fraction = float(ctrl.fraction)
+                        found = True
+                        break
+            if not found:
+                self.fraction = 100.0
+
         self.source_values = {
             e: read_number(self.hass, e) for e in self.cfg.get(CONF_SOURCES, [])
         }
@@ -168,7 +188,7 @@ class BoilerController:
             temperature=True,
         )
         t_min, t_max, offset = (self.values[k] for k in ("t_min", "t_max", "offset"))
-        self.low, self.high = water_band(demand, t_min, t_max, offset)
+        self.low, self.high = water_band(self.fraction, t_min, t_max, offset)
         safety = float(self.cfg[CONF_SAFETY_MAX])
 
         if not self.enabled:

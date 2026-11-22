@@ -19,7 +19,7 @@ from .const import (
     B_CIRCULATING, B_DISABLED, B_HEATING, B_IDLE, B_SAFETY, B_WATER_FAILURE,
     CONF_BURNER, CONF_CIRCULATOR, CONF_FRACTION_ENTITY, CONF_MIN_OFF, CONF_MIN_ON, CONF_NOTIFY_MESSAGE,
     CONF_NOTIFY_SERVICE, CONF_POST_RUN,
-    CONF_SAFETY_MAX, CONF_SOURCES, CONF_WATER_MAX_AGE, CONF_WATER_TEMP,
+    CONF_SAFETY_MAX, CONF_SOURCES, CONF_USE_FRACTION, CONF_WATER_MAX_AGE, CONF_WATER_TEMP,
     DEFAULT_BOILER_OPTIONS, DEFAULT_OFFSET, DEFAULT_T_MAX, DEFAULT_T_MIN, DOMAIN,
     STORAGE_VERSION, TYPE_FRACTION,
 )
@@ -42,6 +42,7 @@ class BoilerController:
         self.values = {"t_min": DEFAULT_T_MIN, "t_max": DEFAULT_T_MAX, "offset": DEFAULT_OFFSET}
         self.enabled = True
         self.dry_run = False
+        self.use_fraction = bool(self.cfg.get(CONF_USE_FRACTION, True))
 
         self.demand = 0.0
         self.fraction = 100.0
@@ -84,7 +85,12 @@ class BoilerController:
 
     # ---------------------------------------------------------------- storage
     def _data(self) -> dict[str, Any]:
-        return {"values": self.values, "enabled": self.enabled, "dry_run": self.dry_run}
+        return {
+            "values": self.values,
+            "enabled": self.enabled,
+            "dry_run": self.dry_run,
+            "use_fraction": self.use_fraction,
+        }
 
     @callback
     def _save(self) -> None:
@@ -96,6 +102,8 @@ class BoilerController:
             self.values.update({k: float(v) for k, v in data.get("values", {}).items() if k in self.values})
             self.enabled = bool(data.get("enabled", True))
             self.dry_run = bool(data.get("dry_run", False))
+            if "use_fraction" in data:
+                self.use_fraction = bool(data["use_fraction"])
 
     # -------------------------------------------------------------- lifecycle
     async def async_start(self) -> None:
@@ -188,7 +196,8 @@ class BoilerController:
             temperature=True,
         )
         t_min, t_max, offset = (self.values[k] for k in ("t_min", "t_max", "offset"))
-        self.low, self.high = water_band(self.fraction, t_min, t_max, offset)
+        ref_percent = self.fraction if self.use_fraction else demand
+        self.low, self.high = water_band(ref_percent, t_min, t_max, offset)
         safety = float(self.cfg[CONF_SAFETY_MAX])
 
         if not self.enabled:
@@ -255,5 +264,10 @@ class BoilerController:
 
     async def async_set_dry_run(self, value: bool) -> None:
         self.dry_run = value
+        self._save()
+        self._evaluate()
+
+    async def async_set_use_fraction(self, value: bool) -> None:
+        self.use_fraction = value
         self._save()
         self._evaluate()

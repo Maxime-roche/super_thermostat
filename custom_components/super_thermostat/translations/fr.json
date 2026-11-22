@@ -55,14 +55,16 @@
           "circulator_entity": "Relais du circulateur",
           "water_temperature_entity": "Sonde de température d'eau",
           "power_sources": "Sources de puissance (conditionnent la chauffe)",
-          "boiler_fraction_entity": "Fraction chaudière (loi d'eau)"
+          "boiler_fraction_entity": "Fraction chaudière (loi d'eau)",
+          "use_fraction": "Réguler l'eau selon la fraction chaudière"
         },
         "data_description": {
           "burner_entity": "Relais (switch) qui allume le brûleur.",
           "circulator_entity": "Relais (switch) du circulateur, allumé dès qu'il y a une demande.",
           "water_temperature_entity": "Sonde de température de l'eau de la chaudière.",
           "power_sources": "Entités sensor / number / input_number : dès qu'au moins une source demande (> 0 %), la chaudière régule son eau selon la loi d'eau.",
-          "boiler_fraction_entity": "Facultatif. Entité fraction chaudière (0-100 %) qui régit la loi d'eau de la chaudière (température d'eau entre t_min et t_max). Si non renseignée, détection automatique de l'entrée fraction."
+          "boiler_fraction_entity": "Facultatif. Entité fraction chaudière (0-100 %) qui régit la loi d'eau de la chaudière (température d'eau entre t_min et t_max). Si non renseignée, détection automatique de l'entrée fraction.",
+          "use_fraction": "Activé : la température d'eau suit la loi d'eau régie par la fraction chaudière (recommandé avec des vannes thermostatiques). Désactivé : la température d'eau suit le pourcentage cumulé des demandes des zones."
         }
       },
       "fraction": {
@@ -231,14 +233,16 @@
           "circulator_entity": "Relais du circulateur",
           "water_temperature_entity": "Sonde de température d'eau",
           "power_sources": "Sources de puissance (conditionnent la chauffe)",
-          "boiler_fraction_entity": "Fraction chaudière (loi d'eau)"
+          "boiler_fraction_entity": "Fraction chaudière (loi d'eau)",
+          "use_fraction": "Réguler l'eau selon la fraction chaudière"
         },
         "data_description": {
           "burner_entity": "Relais (switch) qui allume le brûleur.",
           "circulator_entity": "Relais (switch) du circulateur, allumé dès qu'il y a une demande.",
           "water_temperature_entity": "Sonde de température de l'eau de la chaudière.",
           "power_sources": "Entités sensor / number / input_number : dès qu'au moins une source demande (> 0 %), la chaudière régule son eau selon la loi d'eau.",
-          "boiler_fraction_entity": "Facultatif. Entité fraction chaudière (0-100 %) qui régit la loi d'eau de la chaudière (température d'eau entre t_min et t_max). Si non renseignée, détection automatique de l'entrée fraction."
+          "boiler_fraction_entity": "Facultatif. Entité fraction chaudière (0-100 %) qui régit la loi d'eau de la chaudière (température d'eau entre t_min et t_max). Si non renseignée, détection automatique de l'entrée fraction.",
+          "use_fraction": "Activé : la température d'eau suit la loi d'eau régie par la fraction chaudière (recommandé avec des vannes thermostatiques). Désactivé : la température d'eau suit le pourcentage cumulé des demandes des zones."
         }
       },
       "tuning": {
@@ -461,6 +465,9 @@
       },
       "dry_run": {
         "name": "Simulation (ne pilote pas les relais)"
+      },
+      "use_fraction": {
+        "name": "Loi d'eau (fraction chaudière)"
       }
     },
     "button": {

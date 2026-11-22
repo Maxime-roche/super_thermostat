@@ -125,6 +125,7 @@ CONF_MIN_ON = "min_on_minutes"
 CONF_MIN_OFF = "min_off_minutes"
 CONF_SAFETY_MAX = "safety_max"
 CONF_WATER_MAX_AGE = "water_max_age"
+CONF_USE_FRACTION = "use_fraction"
 
 DEFAULT_BOILER_OPTIONS = {
     CONF_POST_RUN: 0,
@@ -132,6 +133,7 @@ DEFAULT_BOILER_OPTIONS = {
     CONF_MIN_OFF: 2,
     CONF_SAFETY_MAX: 85,
     CONF_WATER_MAX_AGE: 10,
+    CONF_USE_FRACTION: True,
     CONF_NOTIFY_MESSAGE: "",
 }
 DEFAULT_T_MIN = 20.0

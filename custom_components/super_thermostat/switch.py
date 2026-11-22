@@ -34,4 +34,5 @@ async def async_setup_entry(
     async_add_entities([
         BoilerSwitch(c, "enabled", "enabled", "async_set_enabled"),
         BoilerSwitch(c, "dry_run", "dry_run", "async_set_dry_run"),
+        BoilerSwitch(c, "use_fraction", "use_fraction", "async_set_use_fraction"),
     ])

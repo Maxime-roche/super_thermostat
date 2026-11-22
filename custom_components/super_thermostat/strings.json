@@ -55,14 +55,16 @@
           "circulator_entity": "Circulator relay",
           "water_temperature_entity": "Water temperature sensor",
           "power_sources": "Power sources (trigger heating)",
-          "boiler_fraction_entity": "Boiler fraction (heating curve)"
+          "boiler_fraction_entity": "Boiler fraction (heating curve)",
+          "use_fraction": "Regulate water temperature using boiler fraction"
         },
         "data_description": {
           "burner_entity": "Relay (switch) that turns the burner on.",
           "circulator_entity": "Circulator relay (switch), on as soon as there is demand.",
           "water_temperature_entity": "Boiler water temperature sensor.",
           "power_sources": "sensor / number / input_number entities: as soon as at least one source demands heat (> 0 %), the boiler regulates its water temperature.",
-          "boiler_fraction_entity": "Optional. Boiler fraction entity (0-100 %) controlling the heating curve (water temperature between t_min and t_max). If left blank, automatic detection of fraction entry."
+          "boiler_fraction_entity": "Optional. Boiler fraction entity (0-100 %) controlling the heating curve (water temperature between t_min and t_max). If left blank, automatic detection of fraction entry.",
+          "use_fraction": "Enabled: water temperature follows heating curve based on boiler fraction (recommended with thermostatic valves). Disabled: water temperature follows summed zone demands."
         }
       },
       "fraction": {
@@ -231,14 +233,16 @@
           "circulator_entity": "Circulator relay",
           "water_temperature_entity": "Water temperature sensor",
           "power_sources": "Power sources (trigger heating)",
-          "boiler_fraction_entity": "Boiler fraction (heating curve)"
+          "boiler_fraction_entity": "Boiler fraction (heating curve)",
+          "use_fraction": "Regulate water temperature using boiler fraction"
         },
         "data_description": {
           "burner_entity": "Relay (switch) that turns the burner on.",
           "circulator_entity": "Circulator relay (switch), on as soon as there is demand.",
           "water_temperature_entity": "Boiler water temperature sensor.",
           "power_sources": "sensor / number / input_number entities: as soon as at least one source demands heat (> 0 %), the boiler regulates its water temperature.",
-          "boiler_fraction_entity": "Optional. Boiler fraction entity (0-100 %) controlling the heating curve (water temperature between t_min and t_max). If left blank, automatic detection of fraction entry."
+          "boiler_fraction_entity": "Optional. Boiler fraction entity (0-100 %) controlling the heating curve (water temperature between t_min and t_max). If left blank, automatic detection of fraction entry.",
+          "use_fraction": "Enabled: water temperature follows heating curve based on boiler fraction (recommended with thermostatic valves). Disabled: water temperature follows summed zone demands."
         }
       },
       "tuning": {
@@ -461,6 +465,9 @@
       },
       "dry_run": {
         "name": "Simulation (relays not driven)"
+      },
+      "use_fraction": {
+        "name": "Heating curve (boiler fraction)"
       }
     },
     "button": {

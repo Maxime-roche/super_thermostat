@@ -36,17 +36,17 @@
       </div>
       <h2 style="margin-top:22px">2. Loi d'eau</h2>
       <div class="group">
-        <div class="field-head"><label for="waterMin">Température d'eau à 0 %</label><input class="number" id="waterMinN" type="number" step="0.5" value="20"></div>
+        <div class="field-head"><label for="waterMin">Température basse d’allumage à 0 %</label><input class="number" id="waterMinN" type="number" step="0.5" value="20"></div>
         <input id="waterMin" type="range" min="10" max="60" step="0.5" value="20">
       </div>
       <div class="group">
-        <div class="field-head"><label for="waterMax">Température d'eau à 100 %</label><input class="number" id="waterMaxN" type="number" step="0.5" value="72"></div>
+        <div class="field-head"><label for="waterMax">Température haute d’extinction à 100 %</label><input class="number" id="waterMaxN" type="number" step="0.5" value="72"></div>
         <input id="waterMax" type="range" min="25" max="90" step="0.5" value="72">
       </div>
       <div class="group">
         <div class="field-head"><label for="offset">Décalage seuil bas / haut</label><input class="number" id="offsetN" type="number" min="0" max="30" step="0.5" value="5"></div>
         <input id="offset" type="range" min="0" max="30" step="0.5" value="5">
-        <div class="hint">Le seuil haut est plafonné à la température d'eau à 100 %.</div>
+        <div class="hint">Le décalage est appliqué de façon symétrique : seuil d’extinction = seuil d’allumage + décalage. À 100 %, l’allumage vaut donc température haute − décalage.</div>
       </div>
       <div class="actions"><button id="reset">Réinitialiser les valeurs par défaut</button></div>
     </section>
@@ -65,12 +65,12 @@
       <div class="panel chart-wrap">
         <h2>Courbes de régulation</h2>
         <svg id="chart" class="chart" viewBox="0 0 760 440" role="img" aria-label="Graphiques de fraction chaudière et de seuils de température d'eau en fonction de la température extérieure"></svg>
-        <div class="legend"><span><i class="key"></i>Fraction chaudière</span><span><i class="key green"></i>Seuil bas eau</span><span><i class="key orange"></i>Seuil haut eau</span></div>
-        <p class="hint">La fraction effective tient compte de la fraction minimale d'utilisation. Les seuils d'eau sont calculés à partir de cette fraction.</p>
+        <div class="legend"><span><i class="key"></i>Fraction chaudière</span><span><i class="key green"></i>Seuil d’allumage</span><span><i class="key orange"></i>Seuil d’extinction</span></div>
+        <p class="hint">La fraction effective tient compte de la fraction minimale d'utilisation. Le décalage reste constant entre les seuils d’allumage et d’extinction sur toute la plage de fraction.</p>
       </div>
       <div class="panel">
         <h2>Tableau de simulation</h2>
-        <div class="table-scroll"><table><thead><tr><th>Extérieur</th><th>Fraction</th><th>Seuil bas</th><th>Seuil haut</th></tr></thead><tbody id="resultsTable"></tbody></table></div>
+        <div class="table-scroll"><table><thead><tr><th>Extérieur</th><th>Fraction</th><th>Allumage (bas)</th><th>Extinction (haut)</th></tr></thead><tbody id="resultsTable"></tbody></table></div>
       </div>
       <div class="panel">
         <h2>Récapitulatif des réglages</h2>
@@ -98,8 +98,8 @@
     const span=p.outWarm-p.outCold;
     const raw=span>0?clamp((p.outWarm-out)/span,0,1):0;
     const fraction=raw*100 < p.minFrac ? 0 : raw;
-    const low=p.waterMin+fraction*(p.waterMax-p.waterMin);
-    const high=Math.min(low+p.offset,p.waterMax);
+    const low=p.waterMin+fraction*(p.waterMax-p.waterMin-p.offset);
+    const high=low+p.offset;
     return {raw,fraction,low,high};
   }
   function path(points){return points.map((pt,i)=>(i?'L':'M')+pt[0].toFixed(1)+','+pt[1].toFixed(1)).join(' ')}
@@ -139,7 +139,7 @@
   function update(){
     const p=params();
     if(p.outWarm<=p.outCold){$('fractionExplanation').textContent='Attention : le seuil extérieur haut doit être supérieur au seuil extérieur bas.';$('fractionResult').textContent='—';$('lowResult').textContent='—';$('highResult').textContent='—';$('resultsTable').innerHTML='';return;}
-    if(p.waterMax<=p.waterMin){$('fractionExplanation').textContent='Attention : la température d’eau à 100 % doit être supérieure à celle à 0 %.';$('fractionResult').textContent='—';$('lowResult').textContent='—';$('highResult').textContent='—';$('resultsTable').innerHTML='';return;}
+    if(p.waterMax<=p.waterMin || p.offset>=p.waterMax-p.waterMin){$('fractionExplanation').textContent='Attention : la température à 100 % doit être supérieure à celle à 0 %, et le décalage doit être inférieur à leur différence.';$('fractionResult').textContent='—';$('lowResult').textContent='—';$('highResult').textContent='—';$('resultsTable').innerHTML='';return;}
     const r=calculate(p.outsideNow,p);
     $('fractionResult').textContent=fmt(r.fraction*100)+' %';$('lowResult').textContent=fmt(r.low)+' °C';$('highResult').textContent=fmt(r.high)+' °C';
     $('fractionExplanation').textContent=r.raw*100<p.minFrac&&r.raw>0?'La fraction brute est inférieure au minimum configuré : la fraction effective est donc ramenée à 0 %.':`Fraction brute : ${fmt(r.raw*100)} %. La fraction effective est utilisée pour calculer les seuils d'eau.`;
@@ -147,7 +147,7 @@
     $('resultsTable').innerHTML=temps.map(t=>{const x=calculate(t,p);return `<tr><td>${fmt(t)} °C</td><td>${fmt(x.fraction*100)} %</td><td>${fmt(x.low)} °C</td><td>${fmt(x.high)} °C</td></tr>`}).join('');
     $('summary').textContent=[
       'Fraction chaudière',`Température extérieure basse (100 %) : ${fmt(p.outCold)} °C`,`Température extérieure haute (0 %) : ${fmt(p.outWarm)} °C`,`Fraction minimale d'utilisation : ${fmt(p.minFrac)} %`,'',
-      'Loi d’eau',`Température d'eau à 0 % : ${fmt(p.waterMin)} °C`,`Température d'eau à 100 % : ${fmt(p.waterMax)} °C`,`Décalage seuil bas / haut : ${fmt(p.offset)} °C`,'',
+      'Loi d’eau',`Température basse d'allumage à 0 % : ${fmt(p.waterMin)} °C`,`Température haute d'extinction à 100 % : ${fmt(p.waterMax)} °C`,`Décalage entre allumage et extinction : ${fmt(p.offset)} °C`,'',
       `Simulation à ${fmt(p.outsideNow)} °C extérieur`,`Fraction effective : ${fmt(r.fraction*100)} %`,`Seuil bas eau : ${fmt(r.low)} °C`,`Seuil haut eau : ${fmt(r.high)} °C`
     ].join('\n');
     draw(p);

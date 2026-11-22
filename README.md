@@ -252,18 +252,18 @@ Une seule entrée.
 Le calcul se déroule en deux étapes :
 
 1. **Fraction chaudière** : l'entrée *Fraction chaudière* transforme la température extérieure en un pourcentage compris entre 0 et 100 %. Ses deux seuils sont réglés dans les options de cette entrée : température basse = 100 % et température haute = 0 % (voir [Fraction chaudière](#2-fraction-chaudière)).
-2. **Loi d'eau** : la gestion chaudière transforme ce pourcentage en deux seuils de température d'eau. La température basse suit la plage réglée entre **Température d'eau à 0 %** et **Température d'eau à 100 %**. La température haute est la température basse augmentée du **décalage seuil bas / haut**, sans jamais dépasser la température d'eau à 100 %.
+2. **Loi d'eau** : la gestion chaudière transforme ce pourcentage en deux seuils de température d'eau. Le seuil d'allumage (bas) évolue de **Température d'eau à 0 %** jusqu'à **Température d'eau à 100 % moins le décalage**. Le seuil d'extinction (haut) reste toujours égal au seuil d'allumage augmenté du **décalage seuil bas / haut**. Ainsi, le décalage est conservé sur toute la plage de fraction.
 
-Avec `fraction` exprimée entre 0 et 1 :
+Avec `fraction` exprimée entre 0 et 1, `t_min` la température basse d'allumage à 0 %, `t_max` la température haute d'extinction à 100 % et `décalage` l'hystérésis :
 
 ```text
-seuil_bas = t_min + fraction × (t_max - t_min)
-seuil_haut = min(seuil_bas + décalage, t_max)
+seuil_bas_allumage = t_min + fraction × (t_max - décalage - t_min)
+seuil_haut_extinction = seuil_bas_allumage + décalage
 ```
 
 Le brûleur s'allume sous le seuil bas, s'éteint au-dessus du seuil haut et conserve son état entre les deux (hystérésis), sous réserve des temporisations et sécurités décrites ci-dessous.
 
-**Exemple illustré** : fraction chaudière de 100 % à −3 °C et de 0 % à +9 °C ; température d'eau à 0 % = 20 °C, à 100 % = 45 °C ; décalage = 5 °C.
+**Exemple illustré** : fraction chaudière de 100 % à −3 °C et de 0 % à +9 °C ; température basse d'allumage à 0 % = 20 °C, température haute d'extinction à 100 % = 45 °C ; décalage = 5 °C. À 0 %, les seuils sont 20/25 °C ; à 100 %, ils sont 40/45 °C.
 
 ![Graphique illustratif de la fraction chaudière et des seuils de la loi d'eau](docs/loi-eau.svg)
 
@@ -322,7 +322,7 @@ bornée entre 0 et 100. Le premier terme corrige l'écart ; le second **anticipe
 - **Loi d'eau et température d'eau** : la consigne de température d'eau dépend de l'interrupteur **Loi d'eau (fraction chaudière)** :
   - **Activé (par défaut)** : la consigne suit la **fraction chaudière** (0 à 100 %). Les radiateurs modulent leur débit via leurs vannes thermostatiques au pourcentage de chaque pièce, pendant que la chaudière délivre une eau à température adaptée à la météo extérieure.
   - **Désactivé** : la consigne suit la **demande cumulée** des thermostats (somme des puissances).
-- **Plage de régulation** : le seuil bas d'eau varie linéairement de la température à 0 % (`t_min`) jusqu'à la température à 100 % (`t_max`). Le seuil haut = `min(seuil bas + décalage, t_max)`. Le décalage crée donc une bande d'hystérésis qui se réduit à l'approche de la température maximale. Avec 20 °C, 45 °C et 5 °C : à 0 %, les seuils sont 20 et 25 °C ; à 100 %, ils sont tous deux à 45 °C.
+- **Plage de régulation** : le seuil bas d'allumage varie linéairement de `t_min` à `t_max - décalage`. Le seuil haut d'extinction vaut toujours `seuil bas + décalage`. Le décalage crée donc une bande d'hystérésis constante sur toute la plage. Avec 20 °C, 45 °C et 5 °C : à 0 %, les seuils sont 20 et 25 °C ; à 100 %, ils sont 40 et 45 °C.
 - Le brûleur s'allume sous le seuil bas, s'éteint au-dessus du seuil haut et conserve son état dans la bande d'hystérésis (en respectant les durées minimales de marche et d'arrêt). Il s'éteint immédiatement s'il n'y a plus de demande (`demand == 0`), si la sonde d'eau est muette ou si la température de sécurité est atteinte.
 
 ### Clim

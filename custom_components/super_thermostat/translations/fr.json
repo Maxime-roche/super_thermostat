@@ -113,9 +113,9 @@
       "init": {
         "title": "Options",
         "menu_options": {
-          "zone_sensors": "Sondes, type et cycle",
+          "zone_sensors": "Sondes et type",
           "valves": "Vannes thermostatiques",
-          "notifications": "Notifications de défaillance",
+          "notifications": "Défaillances",
           "regulation": "Régulation",
           "windows": "Ouvrants",
           "boiler_sensors": "Relais, sondes et sources",
@@ -123,19 +123,18 @@
           "fraction_source": "Température de référence",
           "ac_entities": "Clim, sources et fraction",
           "ac_tuning": "Temporisations",
-          "save": "Enregistrer et fermer"
+          "save": "Enregistrer et fermer",
+          "regulation_boiler": "Régulation chaudière",
+          "regulation_ac": "Régulation clim"
         }
       },
       "zone_sensors": {
-        "title": "Sondes, type et cycle",
+        "title": "Sondes et type",
         "data": {
           "name": "Nom de la zone",
           "temperature_entity": "Sonde de température intérieure",
           "outdoor_entity": "Sonde de température extérieure",
           "allowed_modes": "Type de zone",
-          "cycle_minutes": "Durée du cycle",
-          "max_sensor_age": "Âge max de la sonde avant défaillance",
-          "failsafe_power": "Puissance en cas de défaillance sonde",
           "boiler_fraction_entity": "Fraction chaudière (0-100 %)",
           "season_entity": "Entité « saison » (été = froid)",
           "associated_climate": "Clim associée (gestion ventilation)"
@@ -144,9 +143,6 @@
           "temperature_entity": "Sonde de température de la pièce : sensor, input_number, number, météo ou climate.",
           "outdoor_entity": "Facultatif. Sans elle, la zone ne tient pas compte de la météo.",
           "allowed_modes": "Définit les modes proposés par la zone (chauffage, climatisation ou les deux).",
-          "cycle_minutes": "Période de recalcul du pourcentage. Sert aussi de fenêtre de mesure pour l'apprentissage.",
-          "max_sensor_age": "Sans nouvelle valeur de la sonde pendant ce délai, la zone passe en « défaillance sonde ».",
-          "failsafe_power": "0 = la zone ne demande rien si la sonde est absente.",
           "boiler_fraction_entity": "Puissance chaudière = puissance de chauffe × fraction. Vide = 100 %.",
           "season_entity": "Mode Auto : si activée (été) la zone refroidit, sinon elle chauffe. Vide = le sens suit la température (sous la consigne de chauffe : chauffe ; au-dessus de la consigne de froid : froid ; entre les deux : zone morte).",
           "associated_climate": "Entité climatiseur facultative (ex. Daikin) pour afficher et modifier la ventilation directement depuis ce thermostat."
@@ -184,14 +180,18 @@
         }
       },
       "notifications": {
-        "title": "Notifications de défaillance",
+        "title": "Défaillances",
         "data": {
           "notify_service": "Service de notification",
-          "notify_message": "Message en cas de défaillance"
+          "notify_message": "Message en cas de défaillance",
+          "max_sensor_age": "Âge max de la sonde avant défaillance",
+          "failsafe_power": "Puissance en cas de défaillance sonde"
         },
         "data_description": {
           "notify_service": "Service de notification à utiliser (par exemple notify.mobile_app_telephone). Vide = aucune notification. La liste propose les services existants, tu peux aussi saisir le nom.",
-          "notify_message": "Message envoyé à chaque nouvelle défaillance. Variables : $nom (nom de l'entrée) et $cause (cause). Vide = « $nom : $cause »."
+          "notify_message": "Message envoyé à chaque nouvelle défaillance. Variables : $nom (nom de l'entrée) et $cause (cause). Vide = « $nom : $cause ».",
+          "max_sensor_age": "Sans nouvelle valeur de la sonde pendant ce délai, la zone passe en « défaillance sonde ».",
+          "failsafe_power": "0 = la zone ne demande rien si la sonde est absente."
         }
       },
       "regulation": {
@@ -202,7 +202,8 @@
           "autolearn": "Auto-apprentissage",
           "threshold_hot": "Seuil « cycle précédent chaud »",
           "offset_next_full": "Réduction après un cycle chaud (0 = off)",
-          "fail_offset": "Marge de détection de défaillance"
+          "fail_offset": "Marge de détection de défaillance",
+          "cycle_minutes": "Durée du cycle"
         },
         "data_description": {
           "min_power": "Sous ce pourcentage, la zone ne demande rien : évite les micro-demandes inutiles.",
@@ -210,7 +211,8 @@
           "autolearn": "La zone corrige seule ses coefficients d'après la montée en température réelle de la pièce. Désactive pour les figer.",
           "threshold_hot": "Si le cycle précédent a dépassé ce pourcentage, le radiateur est encore chaud : le cycle suivant est réduit (voir réduction ci-dessous).",
           "offset_next_full": "Pourcentage retiré au cycle suivant après un cycle très chaud, pour tenir compte de l'inertie du radiateur. 0 = désactivé.",
-          "fail_offset": "Si la zone chauffe (ou refroidit) mais que la température reste à plus de X °C de la consigne et continue de s'en éloigner, 2 cycles de suite : statut « défaillance chauffage / clim »."
+          "fail_offset": "Si la zone chauffe (ou refroidit) mais que la température reste à plus de X °C de la consigne et continue de s'en éloigner, 2 cycles de suite : statut « défaillance chauffage / clim ».",
+          "cycle_minutes": "Période de recalcul du pourcentage. Sert aussi de fenêtre de mesure pour l'apprentissage."
         }
       },
       "windows": {
@@ -309,6 +311,54 @@
           "min_fraction": "Sous ce pourcentage, la fraction passe à 0 % : les radiateurs seraient trop peu ouverts pour que la chaudière serve (les vannes se ferment, la clim prend le relais).",
           "seuil_haut": "Au-dessus de cette température : 0 % de chaudière. Entre les deux seuils, la fraction varie linéairement.",
           "seuil_bas": "En dessous de cette température : 100 % de chaudière."
+        }
+      },
+      "regulation_boiler": {
+        "title": "Régulation chaudière",
+        "data": {
+          "hy_b_cycle": "Durée du cycle",
+          "min_power": "Puissance minimale",
+          "hy_b_min_on": "Temps minimal allumée",
+          "hy_b_min_off": "Temps minimal éteinte",
+          "hy_b_hyst_on": "Hystérésis d'allumage",
+          "hy_b_hyst_off": "Hystérésis d'extinction",
+          "hy_b_smooth": "Lissage de la température"
+        },
+        "data_description": {
+          "hy_b_cycle": "Période de réévaluation de la chaudière (base lente). Entre deux cycles, la puissance chaudière est conservée.",
+          "min_power": "En dessous, la chaudière ne demande rien.",
+          "hy_b_min_on": "Une fois demandée, la chaudière n'est pas coupée avant ce délai (sauf mode Off, fenêtre ou panne sonde).",
+          "hy_b_min_off": "Une fois coupée, la chaudière n'est pas redemandée avant ce délai.",
+          "hy_b_hyst_on": "Demande dès que la température lissée est sous la consigne de cette valeur.",
+          "hy_b_hyst_off": "Coupe quand la température lissée dépasse la consigne de cette valeur. Les temps minimaux l'emportent sur l'hystérésis.",
+          "hy_b_smooth": "Moyenne glissante de la sonde pour la chaudière (inertie forte). 0 = température instantanée."
+        }
+      },
+      "regulation_ac": {
+        "title": "Régulation clim",
+        "data": {
+          "hy_a_cycle": "Durée du cycle",
+          "hy_a_min_power": "Puissance minimale",
+          "autolearn": "Auto-apprentissage",
+          "hy_a_min_on": "Temps minimal allumée",
+          "hy_a_min_off": "Temps minimal éteinte",
+          "hy_a_hyst_on": "Hystérésis d'allumage",
+          "hy_a_hyst_off": "Hystérésis d'extinction",
+          "hy_a_smooth": "Lissage de la température",
+          "hy_a_force_fraction": "Fraction chaudière qui force la clim",
+          "hy_a_force_power": "Puissance minimale clim forcée"
+        },
+        "data_description": {
+          "hy_a_cycle": "Période de la boucle rapide et fenêtre d'apprentissage de la clim (10 min recommandé).",
+          "hy_a_min_power": "Puissance minimale de la clim quand elle est demandée.",
+          "autolearn": "Ajuste la réactivité de la clim d'après la montée en température observée.",
+          "hy_a_min_on": "La clim n'est pas coupée avant ce délai.",
+          "hy_a_min_off": "La clim n'est pas redemandée avant ce délai (sauf forçage par la fraction chaudière).",
+          "hy_a_hyst_on": "Demande dès que la température est sous la consigne de cette valeur.",
+          "hy_a_hyst_off": "Coupe quand la température dépasse la consigne de cette valeur.",
+          "hy_a_smooth": "Moyenne glissante de la sonde pour la clim. 0 = instantané (réactif).",
+          "hy_a_force_fraction": "Quand la fraction chaudière atteint ce seuil, la clim reste allumée (relâchée 5 % plus bas). Elle s'arrête quand même si la pièce dépasse la consigne de l'hystérésis d'extinction. 0 = désactivé.",
+          "hy_a_force_power": "Puissance de la clim quand elle est maintenue allumée par la fraction chaudière."
         }
       }
     }

@@ -177,3 +177,29 @@ A_COOLING = "cooling"
 A_FRACTION_CUTOFF = "fraction_cutoff"
 A_SUMMER = "summer_season"
 AC_STATUSES = [A_DISABLED, A_IDLE, A_HEATING, A_COOLING, A_FRACTION_CUTOFF, A_SUMMER]
+
+# --- zone hybride : deux régulations indépendantes (chaudière / clim) ---
+CONF_HY_B_CYCLE = "hy_b_cycle"
+CONF_HY_B_MIN_ON = "hy_b_min_on"
+CONF_HY_B_MIN_OFF = "hy_b_min_off"
+CONF_HY_B_HYST_ON = "hy_b_hyst_on"
+CONF_HY_B_HYST_OFF = "hy_b_hyst_off"
+CONF_HY_B_SMOOTH = "hy_b_smooth"
+CONF_HY_A_CYCLE = "hy_a_cycle"
+CONF_HY_A_MIN_ON = "hy_a_min_on"
+CONF_HY_A_MIN_OFF = "hy_a_min_off"
+CONF_HY_A_HYST_ON = "hy_a_hyst_on"
+CONF_HY_A_HYST_OFF = "hy_a_hyst_off"
+CONF_HY_A_SMOOTH = "hy_a_smooth"
+CONF_HY_A_MIN_POWER = "hy_a_min_power"
+CONF_HY_A_FORCE_FRACTION = "hy_a_force_fraction"  # 0 = désactivé
+CONF_HY_A_FORCE_POWER = "hy_a_force_power"
+HY_FORCE_RELEASE_GAP = 5  # relâchement du forçage clim à (X - 5) %
+
+DEFAULT_HYBRID_OPTIONS = {
+    CONF_HY_B_CYCLE: 30, CONF_HY_B_MIN_ON: 20, CONF_HY_B_MIN_OFF: 15,
+    CONF_HY_B_HYST_ON: 0.3, CONF_HY_B_HYST_OFF: 0.3, CONF_HY_B_SMOOTH: 45,
+    CONF_HY_A_CYCLE: 10, CONF_HY_A_MIN_ON: 5, CONF_HY_A_MIN_OFF: 3,
+    CONF_HY_A_HYST_ON: 0.2, CONF_HY_A_HYST_OFF: 0.2, CONF_HY_A_SMOOTH: 0,
+    CONF_HY_A_MIN_POWER: 5, CONF_HY_A_FORCE_FRACTION: 60, CONF_HY_A_FORCE_POWER: 10,
+}

@@ -113,9 +113,9 @@
       "init": {
         "title": "Options",
         "menu_options": {
-          "zone_sensors": "Sensors, type and cycle",
+          "zone_sensors": "Sensors and type",
           "valves": "Thermostatic valves",
-          "notifications": "Failure notifications",
+          "notifications": "Failures",
           "regulation": "Regulation",
           "windows": "Openings",
           "boiler_sensors": "Relays, sensors and sources",
@@ -123,19 +123,18 @@
           "fraction_source": "Reference temperature",
           "ac_entities": "AC, sources and fraction",
           "ac_tuning": "Timings",
-          "save": "Save and close"
+          "save": "Save and close",
+          "regulation_boiler": "Boiler regulation",
+          "regulation_ac": "AC regulation"
         }
       },
       "zone_sensors": {
-        "title": "Sensors, type and cycle",
+        "title": "Sensors and type",
         "data": {
           "name": "Zone name",
           "temperature_entity": "Indoor temperature sensor",
           "outdoor_entity": "Outdoor temperature sensor",
           "allowed_modes": "Zone type",
-          "cycle_minutes": "Cycle length",
-          "max_sensor_age": "Max sensor age before failure",
-          "failsafe_power": "Power on sensor failure",
           "boiler_fraction_entity": "Boiler fraction (0-100 %)",
           "season_entity": "Season entity (on = summer = cooling)",
           "associated_climate": "Associated AC (fan speed control)"
@@ -144,9 +143,6 @@
           "temperature_entity": "Room temperature sensor: sensor, input_number, number, weather or climate.",
           "outdoor_entity": "Optional. Without it the zone ignores the weather.",
           "allowed_modes": "Defines the modes offered by the zone (heating, cooling or both).",
-          "cycle_minutes": "Recalculation period of the percentage. Also the measurement window for learning.",
-          "max_sensor_age": "With no new sensor value for this long, the zone goes into 'sensor failure'.",
-          "failsafe_power": "0 = the zone requests nothing if the sensor is missing.",
           "boiler_fraction_entity": "Boiler power = heating power × fraction. Empty = 100 %.",
           "season_entity": "Auto mode: when on (summer) the zone cools, otherwise it heats. Empty = the sense follows the temperature (below the heating setpoint: heat; above the cooling setpoint: cool; in between: dead band).",
           "associated_climate": "Optional AC entity (e.g. Daikin) to view and control fan speed directly on this thermostat."
@@ -184,14 +180,18 @@
         }
       },
       "notifications": {
-        "title": "Failure notifications",
+        "title": "Failures",
         "data": {
           "notify_service": "Notification service",
-          "notify_message": "Failure message"
+          "notify_message": "Failure message",
+          "max_sensor_age": "Max sensor age before failure",
+          "failsafe_power": "Power on sensor failure"
         },
         "data_description": {
           "notify_service": "Notification service to use (e.g. notify.mobile_app_phone). Empty = no notification. The list offers existing services; you can also type the name.",
-          "notify_message": "Message sent at each new failure. Variables: $nom (entry name) and $cause (cause). Empty = '$nom : $cause'."
+          "notify_message": "Message sent at each new failure. Variables: $nom (entry name) and $cause (cause). Empty = '$nom : $cause'.",
+          "max_sensor_age": "With no new sensor value for this long, the zone enters \"sensor failure\".",
+          "failsafe_power": "0 = the zone requests nothing when the sensor is missing."
         }
       },
       "regulation": {
@@ -202,7 +202,8 @@
           "autolearn": "Auto-learning",
           "threshold_hot": "'Previous cycle hot' threshold",
           "offset_next_full": "Reduction after a hot cycle (0 = off)",
-          "fail_offset": "Failure detection margin"
+          "fail_offset": "Failure detection margin",
+          "cycle_minutes": "Cycle duration"
         },
         "data_description": {
           "min_power": "Below this percentage the zone requests nothing: avoids useless tiny demands.",
@@ -210,7 +211,8 @@
           "autolearn": "The zone tunes its own coefficients from the room's real temperature rise. Turn off to freeze them.",
           "threshold_hot": "If the previous cycle went above this percentage the radiator is still hot: the next cycle is reduced (see reduction below).",
           "offset_next_full": "Percentage removed from the next cycle after a very hot one, to account for radiator inertia. 0 = off.",
-          "fail_offset": "If the zone heats (or cools) but the temperature stays more than X °C from the setpoint and keeps moving away, 2 cycles in a row: 'heating / cooling failure'."
+          "fail_offset": "If the zone heats (or cools) but the temperature stays more than X °C from the setpoint and keeps moving away, 2 cycles in a row: 'heating / cooling failure'.",
+          "cycle_minutes": "Recalculation period of the percentage. Also the measurement window for learning."
         }
       },
       "windows": {
@@ -309,6 +311,54 @@
           "min_fraction": "Below this percentage the fraction becomes 0 %: radiators would be too closed for the boiler to be useful (valves close, the AC takes over).",
           "seuil_haut": "Above this temperature: 0 % boiler. Between the two thresholds the fraction varies linearly.",
           "seuil_bas": "Below this temperature: 100 % boiler."
+        }
+      },
+      "regulation_boiler": {
+        "title": "Boiler regulation",
+        "data": {
+          "hy_b_cycle": "Cycle duration",
+          "min_power": "Minimum power",
+          "hy_b_min_on": "Minimum on time",
+          "hy_b_min_off": "Minimum off time",
+          "hy_b_hyst_on": "Turn-on hysteresis",
+          "hy_b_hyst_off": "Turn-off hysteresis",
+          "hy_b_smooth": "Temperature smoothing"
+        },
+        "data_description": {
+          "hy_b_cycle": "Boiler (slow base) re-evaluation period. Boiler power is held between cycles.",
+          "min_power": "Below this, the boiler requests nothing.",
+          "hy_b_min_on": "Once requested, the boiler is not cut before this delay (except Off, window or sensor failure).",
+          "hy_b_min_off": "Once cut, the boiler is not requested again before this delay.",
+          "hy_b_hyst_on": "Requests heat once the smoothed temperature is below setpoint by this value.",
+          "hy_b_hyst_off": "Cuts when the smoothed temperature exceeds setpoint by this value. Minimum times override hysteresis.",
+          "hy_b_smooth": "Moving average of the sensor for the boiler (high inertia). 0 = instantaneous."
+        }
+      },
+      "regulation_ac": {
+        "title": "AC regulation",
+        "data": {
+          "hy_a_cycle": "Cycle duration",
+          "hy_a_min_power": "Minimum power",
+          "autolearn": "Auto-learning",
+          "hy_a_min_on": "Minimum on time",
+          "hy_a_min_off": "Minimum off time",
+          "hy_a_hyst_on": "Turn-on hysteresis",
+          "hy_a_hyst_off": "Turn-off hysteresis",
+          "hy_a_smooth": "Temperature smoothing",
+          "hy_a_force_fraction": "Boiler fraction that forces AC on",
+          "hy_a_force_power": "Forced AC minimum power"
+        },
+        "data_description": {
+          "hy_a_cycle": "Fast loop period and AC learning window (10 min recommended).",
+          "hy_a_min_power": "Minimum AC power when requested.",
+          "autolearn": "Adjusts AC reactivity from the observed temperature rise.",
+          "hy_a_min_on": "AC is not cut before this delay.",
+          "hy_a_min_off": "AC is not requested again before this delay (unless forced by the boiler fraction).",
+          "hy_a_hyst_on": "Requests heat once the temperature is below setpoint by this value.",
+          "hy_a_hyst_off": "Cuts when the temperature exceeds setpoint by this value.",
+          "hy_a_smooth": "Moving average of the sensor for the AC. 0 = instantaneous (reactive).",
+          "hy_a_force_fraction": "When the boiler fraction reaches this threshold, the AC stays on (released 5 % lower). It still stops if the room exceeds setpoint by the turn-off hysteresis. 0 = disabled.",
+          "hy_a_force_power": "AC power while held on by the boiler fraction."
         }
       }
     }

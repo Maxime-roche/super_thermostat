@@ -27,6 +27,12 @@ from .const import (
     DEFAULT_ZONE_OPTIONS, DOMAIN, TYPE_AC, TYPE_BOILER, TYPE_FRACTION, TYPE_ZONE,
     TYPE_ZONE_HYBRID,
 )
+from .const import (
+    CONF_HY_A_CYCLE, CONF_HY_A_FORCE_FRACTION, CONF_HY_A_FORCE_POWER, CONF_HY_A_HYST_OFF,
+    CONF_HY_A_HYST_ON, CONF_HY_A_MIN_OFF, CONF_HY_A_MIN_ON, CONF_HY_A_MIN_POWER,
+    CONF_HY_A_SMOOTH, CONF_HY_B_CYCLE, CONF_HY_B_HYST_OFF, CONF_HY_B_HYST_ON,
+    CONF_HY_B_MIN_OFF, CONF_HY_B_MIN_ON, CONF_HY_B_SMOOTH, DEFAULT_HYBRID_OPTIONS,
+)
 
 
 def _temp_sensor() -> sel.EntitySelector:
@@ -81,9 +87,6 @@ ZONE_SENSORS = vol.Schema(
             sel.EntitySelectorConfig(domain="climate")
         ),
         vol.Required(CONF_ALLOWED): ALLOWED_SELECTOR,
-        vol.Required(CONF_CYCLE): _num(5, 240, 1, "min"),
-        vol.Required(CONF_MAX_SENSOR_AGE): _num(5, 1440, 1, "min"),
-        vol.Required(CONF_FAILSAFE_POWER): _num(0, 100, 1, "%"),
     }
 )
 ZONE_VALVES = vol.Schema(
@@ -106,15 +109,24 @@ ZONE_VALVES = vol.Schema(
         vol.Required(CONF_VALVE_KEEP_OPEN): sel.BooleanSelector(),
     }
 )
-def _notify_schema(hass) -> vol.Schema:
+def _notify_schema(hass, kind: str | None = None) -> vol.Schema:
     """Choix du service de notification parmi ceux qui existent (saisie libre possible) + message."""
     try:
         services = hass.services.async_services_for_domain("notify")
     except AttributeError:  # anciennes versions
         services = hass.services.async_services().get("notify", {})
     options = [{"value": f"notify.{name}", "label": name} for name in sorted(services)]
+    failure = (
+        {
+            vol.Required(CONF_MAX_SENSOR_AGE): _num(5, 1440, 1, "min"),
+            vol.Required(CONF_FAILSAFE_POWER): _num(0, 100, 1, "%"),
+        }
+        if kind in (TYPE_ZONE, TYPE_ZONE_HYBRID)
+        else {}
+    )
     return vol.Schema(
         {
+            **failure,
             vol.Optional(CONF_NOTIFY_SERVICE): sel.SelectSelector(
                 sel.SelectSelectorConfig(options=options, custom_value=True, mode=sel.SelectSelectorMode.DROPDOWN)
             ),
@@ -125,12 +137,38 @@ def _notify_schema(hass) -> vol.Schema:
 
 ZONE_REGULATION = vol.Schema(
     {
+        vol.Required(CONF_CYCLE): _num(5, 240, 1, "min"),
         vol.Required(CONF_MIN_POWER): _num(0, 50, 1, "%"),
         vol.Required(CONF_LIMIT_CYCLES): sel.BooleanSelector(),
         vol.Required(CONF_AUTOLEARN): sel.BooleanSelector(),
         vol.Required(CONF_THRESHOLD_HOT): _num(0, 100, 1, "%"),
         vol.Required(CONF_OFFSET_NEXT_FULL): _num(0, 100, 1, "%"),
         vol.Required(CONF_FAIL_OFFSET): _num(0, 10, 0.5, "°C"),
+    }
+)
+HYBRID_BOILER_REG = vol.Schema(
+    {
+        vol.Required(CONF_HY_B_CYCLE): _num(5, 240, 1, "min"),
+        vol.Required(CONF_MIN_POWER): _num(0, 50, 1, "%"),
+        vol.Required(CONF_HY_B_MIN_ON): _num(0, 240, 1, "min"),
+        vol.Required(CONF_HY_B_MIN_OFF): _num(0, 240, 1, "min"),
+        vol.Required(CONF_HY_B_HYST_ON): _num(0, 5, 0.1, "°C"),
+        vol.Required(CONF_HY_B_HYST_OFF): _num(0, 5, 0.1, "°C"),
+        vol.Required(CONF_HY_B_SMOOTH): _num(0, 240, 5, "min"),
+    }
+)
+HYBRID_AC_REG = vol.Schema(
+    {
+        vol.Required(CONF_HY_A_CYCLE): _num(2, 60, 1, "min"),
+        vol.Required(CONF_HY_A_MIN_POWER): _num(0, 50, 1, "%"),
+        vol.Required(CONF_AUTOLEARN): sel.BooleanSelector(),
+        vol.Required(CONF_HY_A_MIN_ON): _num(0, 120, 1, "min"),
+        vol.Required(CONF_HY_A_MIN_OFF): _num(0, 120, 1, "min"),
+        vol.Required(CONF_HY_A_HYST_ON): _num(0, 5, 0.1, "°C"),
+        vol.Required(CONF_HY_A_HYST_OFF): _num(0, 5, 0.1, "°C"),
+        vol.Required(CONF_HY_A_SMOOTH): _num(0, 120, 5, "min"),
+        vol.Required(CONF_HY_A_FORCE_FRACTION): _num(0, 100, 1, "%"),
+        vol.Required(CONF_HY_A_FORCE_POWER): _num(0, 100, 1, "%"),
     }
 )
 ZONE_WINDOWS = vol.Schema(
@@ -237,7 +275,6 @@ class SuperThermostatConfigFlow(ConfigFlow, domain=DOMAIN):
                     sel.EntitySelectorConfig(domain="climate")
                 ),
                 vol.Required(CONF_ALLOWED, default=ALLOWED_ALL): ALLOWED_SELECTOR,
-                vol.Required(CONF_CYCLE, default=10): _num(5, 60, 1, "min"),
             }
         )
         return self.async_show_form(step_id="zone_hybrid", data_schema=schema)
@@ -302,7 +339,7 @@ class SuperThermostatOptionsFlow(OptionsFlow):
     def _current(self) -> dict[str, Any]:
         defaults = {
             TYPE_ZONE: DEFAULT_ZONE_OPTIONS,
-            TYPE_ZONE_HYBRID: DEFAULT_ZONE_OPTIONS,  # mêmes valeurs par défaut que zone simple
+            TYPE_ZONE_HYBRID: {**DEFAULT_ZONE_OPTIONS, **DEFAULT_HYBRID_OPTIONS},
             TYPE_BOILER: DEFAULT_BOILER_OPTIONS,
             TYPE_FRACTION: DEFAULT_FRACTION_OPTIONS,
             TYPE_AC: DEFAULT_AC_OPTIONS,
@@ -328,7 +365,12 @@ class SuperThermostatOptionsFlow(OptionsFlow):
         if self._opts is None:
             self._opts = dict(self.config_entry.options)
         kind = self.config_entry.data[CONF_TYPE]
-        if kind in (TYPE_ZONE, TYPE_ZONE_HYBRID):
+        if kind == TYPE_ZONE_HYBRID:
+            menu = [
+                "zone_sensors", "valves", "regulation_boiler", "regulation_ac",
+                "windows", "notifications", "save",
+            ]
+        elif kind == TYPE_ZONE:
             menu = ["zone_sensors", "valves", "regulation", "windows", "notifications", "save"]
         elif kind == TYPE_BOILER:
             menu = ["boiler_sensors", "tuning", "notifications", "save"]
@@ -345,10 +387,16 @@ class SuperThermostatOptionsFlow(OptionsFlow):
         return await self._form("valves", ZONE_VALVES, user_input)
 
     async def async_step_notifications(self, user_input=None) -> ConfigFlowResult:
-        return await self._form("notifications", _notify_schema(self.hass), user_input)
+        return await self._form("notifications", _notify_schema(self.hass, self.config_entry.data[CONF_TYPE]), user_input)
 
     async def async_step_regulation(self, user_input=None) -> ConfigFlowResult:
         return await self._form("regulation", ZONE_REGULATION, user_input)
+
+    async def async_step_regulation_boiler(self, user_input=None) -> ConfigFlowResult:
+        return await self._form("regulation_boiler", HYBRID_BOILER_REG, user_input)
+
+    async def async_step_regulation_ac(self, user_input=None) -> ConfigFlowResult:
+        return await self._form("regulation_ac", HYBRID_AC_REG, user_input)
 
     async def async_step_windows(self, user_input=None) -> ConfigFlowResult:
         return await self._form("windows", ZONE_WINDOWS, user_input)

@@ -28,7 +28,7 @@ from .const import (
     TYPE_ZONE_HYBRID,
 )
 from .const import (
-    CONF_HY_A_CYCLE, CONF_HY_A_FORCE_FRACTION, CONF_HY_A_FORCE_POWER, CONF_HY_A_HYST_OFF,
+    CONF_VALVE_PENDING, CONF_HY_A_CYCLE, CONF_HY_A_FORCE_FRACTION, CONF_HY_A_FORCE_POWER, CONF_HY_A_HYST_OFF,
     CONF_HY_A_HYST_ON, CONF_HY_A_MIN_OFF, CONF_HY_A_MIN_ON, CONF_HY_A_MIN_POWER,
     CONF_HY_A_SMOOTH, CONF_HY_B_CYCLE, CONF_HY_B_HYST_OFF, CONF_HY_B_HYST_ON,
     CONF_HY_B_MIN_OFF, CONF_HY_B_MIN_ON, CONF_HY_B_SMOOTH, CONF_HY_B_AUTOLEARN, DEFAULT_HYBRID_OPTIONS,
@@ -97,16 +97,17 @@ ZONE_VALVES = vol.Schema(
         vol.Optional(CONF_VALVE_POSITIONS): sel.EntitySelector(
             sel.EntitySelectorConfig(domain=["sensor", "number", "input_number"], multiple=True)
         ),
+        vol.Optional(CONF_VALVE_PENDING): sel.EntitySelector(
+            sel.EntitySelectorConfig(domain=["binary_sensor", "input_boolean"], multiple=True)
+        ),
+        vol.Required(CONF_VALVE_RETRY): _num(5, 240, 5, "min"),
         vol.Required(CONF_VALVE_ALERT_MINUTES): _num(0, 720, 5, "min"),
         vol.Optional(CONF_VALVE_SOURCE): _numeric_entity(),
-        vol.Required(CONF_VALVE_PROPORTIONAL): sel.BooleanSelector(),
-        vol.Required(CONF_VALVE_OPEN_MIN): _num(0, 100, 1, "%"),
-        vol.Required(CONF_VALVE_OPEN_MAX): _num(0, 100, 1, "%"),
-        vol.Optional(CONF_VALVE_LEVEL): _num(5, 100, 5, "%"),
-        vol.Required(CONF_VALVE_MIN_STEP): _num(0, 50, 1, "%"),
-        vol.Required(CONF_VALVE_RETRY): _num(5, 240, 5, "min"),
-        vol.Required(CONF_VALVE_NEVER_CLOSE): sel.BooleanSelector(),
         vol.Required(CONF_VALVE_KEEP_OPEN): sel.BooleanSelector(),
+        vol.Required(CONF_VALVE_PROPORTIONAL): sel.BooleanSelector(),
+        vol.Optional(CONF_VALVE_OPEN_MIN): _num(0, 100, 1, "%"),
+        vol.Required(CONF_VALVE_OPEN_MAX): _num(0, 100, 1, "%"),
+        vol.Required(CONF_VALVE_MIN_STEP): _num(0, 50, 1, "%"),
     }
 )
 def _notify_schema(hass, kind: str | None = None) -> vol.Schema:
@@ -231,6 +232,7 @@ AC_TUNING = vol.Schema(
 )
 CLEARABLE = {
     CONF_OUTDOOR_ENTITY: "", CONF_FRACTION_ENTITY: "", CONF_WINDOWS: [], CONF_VALVES: [], CONF_VALVE_SOURCE: "", CONF_VALVE_POSITIONS: [], CONF_VALVE_LEVEL: "",
+    CONF_VALVE_PENDING: [], CONF_VALVE_OPEN_MIN: "",
     CONF_ASSOCIATED_CLIMATE: "",
     CONF_NOTIFY_SERVICE: "", CONF_NOTIFY_MESSAGE: "",
     CONF_AC_FRACTION: "", CONF_SUMMER: "", CONF_ZONE_SEASON: "", CONF_COOL_SOURCES: [],

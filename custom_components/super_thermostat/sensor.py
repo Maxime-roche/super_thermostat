@@ -55,7 +55,10 @@ async def async_setup_entry(
             entities.append(
                 ControllerSensor(
                     c, "power_boiler", lambda: c.power_boiler, unit=PERCENTAGE,
-                    attrs_fn=lambda: {"fraction": c.fraction},
+                    attrs_fn=lambda: {
+                        "fraction": c.fraction, "request": c.power_boiler_request,
+                        "waiting_valve": c.valve_waiting,
+                    },
                 )
             )
         if kind == TYPE_ZONE_HYBRID:

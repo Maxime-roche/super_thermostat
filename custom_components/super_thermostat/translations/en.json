@@ -152,31 +152,29 @@
         "title": "Thermostatic valves",
         "data": {
           "valve_entities": "Valves (opening entities)",
-          "valve_position_entities": "Real valve positions (same order as the valves)",
+          "valve_position_entities": "Actual valve position (same order as the valves)",
+          "valve_pending_entities": "Command pending (same order as the valves)",
           "valve_retry_minutes": "Delay before resending an order to a valve",
-          "valve_alert_minutes": "'Valve not following' alert after",
-          "valve_source": "Demand followed (0-100 % entity)",
+          "valve_alert_minutes": "\"Valve not following\" alert after",
+          "valve_source": "Tracked demand (0-100 % entity)",
+          "valve_keep_open": "Keep open while no other zone requests heat",
           "valve_proportional": "Proportional opening",
-          "valve_open_min": "Minimum opening (at 1 % demand)",
-          "valve_open_max": "Maximum opening (at 100 % demand)",
-          "valve_open_level": "Fixed opening (non-proportional)",
-          "valve_min_step": "Minimum difference before changing the opening",
-          "valve_never_close": "Never close completely (stay at the minimum opening)",
-          "valve_keep_open": "Keep open while no other zone calls for heat"
+          "valve_open_min": "Minimum opening",
+          "valve_open_max": "Maximum opening",
+          "valve_min_step": "Minimum difference before changing the opening"
         },
         "data_description": {
           "valve_entities": "Opening number entities (e.g. …_valve_setpoint). Nothing is sent when cooling or in summer.",
           "valve_position_entities": "Optional: one sensor per valve (e.g. …_valve_position), in the same order as the valves above. Used to compare the real position with the setpoint sent.",
+          "valve_pending_entities": "Optional: one binary sensor per valve (e.g. …_command_pending), in the same order as the valves. When the zone requests the boiler, the valve gets its opening order and the boiler is only allowed once this sensor is back to Off. Safety: after 25 min without confirmation the boiler is allowed anyway.",
           "valve_retry_minutes": "After an order some battery valves take up to ~30 min to respond: the same order is not resent before this delay, then it is if the valve has not followed. A different order is sent right away.",
           "valve_alert_minutes": "If the real position stays more than 10 % away from the setpoint for this long, the 'Valve not following' indicator turns on. 0 = no alert. The delay restarts at each new order.",
           "valve_source": "Entity whose value (0-100 %) drives the opening: the zone's boiler or heating power, the boiler fraction, or any entity you like. Empty = the zone's boiler power.",
-          "valve_proportional": "On: the opening follows demand between the minimum and maximum openings. Off: the valve opens to the fixed opening as soon as the zone calls for heat (the zone's thermostat already modulates power).",
-          "valve_open_min": "Proportional mode: opening at 1 % demand. Also the opening when the zone no longer calls for heat and 'never close' is on.",
-          "valve_open_max": "Proportional mode: opening at 100 % demand. In between the opening varies linearly.",
-          "valve_open_level": "Only used when proportional opening is off. Empty = 100 %.",
-          "valve_min_step": "The valve is only changed when the wanted opening differs from the current one by at least this percentage (full closing is always applied).",
-          "valve_never_close": "When demand is 0 the valve goes to the minimum opening instead of closing. Takes priority over 'keep open'.",
-          "valve_keep_open": "When demand drops to 0 the valve stays as is unless another zone calls for boiler heat, then it closes. Off: closes immediately."
+          "valve_keep_open": "When demand drops to 0 the valve stays as is unless another zone requests the boiler: it then goes to the minimum opening (0 % if empty). Disabled: minimum opening immediately.",
+          "valve_proportional": "Enabled: opening follows demand between minimum and maximum. Disabled: the valve opens to the maximum opening as soon as the zone requests heat.",
+          "valve_open_min": "Proportional mode: lower limit (opening at 1 % demand). Fixed mode: opening when the valve must close. Empty = fully closed (0 %).",
+          "valve_open_max": "Proportional mode: upper limit (opening at 100 % demand). Fixed mode: opening when the zone requests heat.",
+          "valve_min_step": "The valve is only changed when the wanted opening differs from the current one by at least this percentage (full closing is always applied)."
         }
       },
       "notifications": {
@@ -453,6 +451,9 @@
       },
       "circulator": {
         "name": "Circulator"
+      },
+      "valve_waiting": {
+        "name": "Waiting for the valve"
       }
     },
     "number": {

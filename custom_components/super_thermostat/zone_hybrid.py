@@ -81,11 +81,11 @@ class ZoneHybridController(ZoneController):
 
     # ---- Override : power_boiler est géré en propre ici (pas fraction * power_heat) ----
     @property
-    def power_boiler(self) -> int:  # type: ignore[override]
+    def power_boiler_request(self) -> int:  # type: ignore[override]
         return self._power_boiler_hybrid
 
-    @power_boiler.setter
-    def power_boiler(self, value: int) -> None:
+    @power_boiler_request.setter
+    def power_boiler_request(self, value: int) -> None:
         self._power_boiler_hybrid = int(value)
 
     # ---------------------------------------------------------------- storage
@@ -180,7 +180,7 @@ class ZoneHybridController(ZoneController):
         self._buf_a.clear()
 
     def _stop_all(self) -> None:
-        self.power_boiler = 0
+        self.power_boiler_request = 0
         self.power_ac = 0
         self._last_ac_power = 0
         self._reset_regulation()
@@ -213,8 +213,8 @@ class ZoneHybridController(ZoneController):
             failsafe = int(self.cfg[CONF_FAILSAFE_POWER])
             heating = self.hvac_mode in ("heat", "heat_cool")
             self._stop_all()
-            self.power_boiler = failsafe if heating else 0
-            self._apply(Z_SENSOR_FAILURE, heat=self.power_boiler)
+            self.power_boiler_request = failsafe if heating else 0
+            self._apply(Z_SENSOR_FAILURE, heat=self.power_boiler_request)
             return
 
         self.sensor_failure = False
@@ -286,7 +286,7 @@ class ZoneHybridController(ZoneController):
                     delta_loss = max(0.0, consigne - (temp_out if temp_out is not None else temp_in))
                     raw = max(0.0, min(100.0, self.gain_boiler * delta_loss * (fraction / 100.0)))
                     p_boiler = raw if raw >= self._f(CONF_MIN_POWER) else 0.0
-                self.power_boiler = int(round(p_boiler))
+                self.power_boiler_request = int(round(p_boiler))
                 self._b_last_eval = now
                 self._b_last_order = consigne
 
@@ -315,7 +315,7 @@ class ZoneHybridController(ZoneController):
                 p_ac = max(raw, floor)
 
             self.power_ac = int(round(p_ac))
-            self.power_heat = max(self.power_boiler, self.power_ac)
+            self.power_heat = max(self.power_boiler_request, self.power_ac)
             self.power_cool = 0
 
             self._last_ac_temp_in = temp_in
@@ -336,7 +336,7 @@ class ZoneHybridController(ZoneController):
             else:
                 p_cool = 0.0
 
-            self.power_boiler = 0
+            self.power_boiler_request = 0
             self.power_ac = 0
             self.power_heat = 0
             self.power_cool = int(round(p_cool))

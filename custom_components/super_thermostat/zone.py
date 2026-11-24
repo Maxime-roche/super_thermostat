@@ -39,6 +39,10 @@ from .const import (
 from .engine import (
     COOL, HEAT, MANUAL_CONFIDENCE, ZoneParams, ZoneState, resolve_sense, run_cycle,
 )
+from .const import (
+    CONF_VALVE_PENDING, VALVE_SYNC_GRACE, VALVE_SYNC_MAX_MIN, VS_INACTIVE, VS_SYNCED,
+    VS_TIMEOUT, VS_WAITING,
+)
 from .helpers import parse_preset_names, read_number
 from .notify import FailureNotifier
 
@@ -86,6 +90,15 @@ class ZoneController:
         self.sensor_failure = False
         self.valve_target: int | None = None
         self.valve_alert = False
+        # synchronisation vanne -> chaudière
+        self.valve_waiting = False
+        self._sync_active = False
+        self._sync_released = False
+        self._sync_timeout = False
+        self._sync_since: float | None = None
+        self._sync_orders: dict[str, float] = {}  # ordres envoyés depuis le début de la demande
+        self._sync_seen: dict[str, bool] = {}     # capteur « commande en attente » vu à On
+        self._sync_ignore: set[str] = set()       # vannes déjà en place : ordre envoyé, mais non attendu
         self._temp_good: tuple[float, float] | None = None  # (dernière valeur valide, date de son dernier rapport)
         self._valve_orders: dict[str, tuple[int, float]] = {}  # dernier ordre envoyé à chaque vanne
         self._notifier = FailureNotifier(
@@ -131,8 +144,14 @@ class ZoneController:
         return 100.0 if value is None else max(0.0, min(100.0, value))
 
     @property
-    def power_boiler(self) -> int:
+    def power_boiler_request(self) -> int:
+        """Demande chaudière réelle de la zone (pilote les vannes)."""
         return int(round(self.power_heat * self.fraction / 100))
+
+    @property
+    def power_boiler(self) -> int:
+        """Puissance chaudière publiée : 0 tant que la vanne n'a pas confirmé son ouverture."""
+        return 0 if self.valve_waiting else self.power_boiler_request
 
     @property
     def current_temperature(self) -> float | None:
@@ -259,12 +278,11 @@ class ZoneController:
                     self.hass, [self.cfg[CONF_VALVE_SOURCE]], self._on_fraction_event
                 )
             )
-        pairs = self.valve_pairs
-        if pairs:
+        watched_valves = [e for pair in self.valve_pairs for e in pair]
+        watched_valves += [pend for _v, pend in self.pending_pairs]
+        if watched_valves:
             self._unsubs.append(
-                async_track_state_change_event(
-                    self.hass, [e for pair in pairs for e in pair], self._on_valve_event
-                )
+                async_track_state_change_event(self.hass, watched_valves, self._on_valve_event)
             )
         # une vérification par minute : sonde, vannes (ordres à renvoyer), position réelle, notifications
         self._unsubs.append(async_track_time_interval(self.hass, self._tick, timedelta(minutes=1)))
@@ -315,6 +333,7 @@ class ZoneController:
     @callback
     def _on_valve_event(self, _event: Event) -> None:
         self._check_valves()
+        self._evaluate_sync()
 
     @callback
     def _started(self, _hass: HomeAssistant) -> None:
@@ -362,38 +381,39 @@ class ZoneController:
         return zones
 
     def _other_zone_demand(self) -> bool:
-        return any(zone.power_boiler > 0 for zone in self._other_zones())
+        return any(zone.power_boiler_request > 0 for zone in self._other_zones())
 
     def _valve_target(self) -> int | None:
         """Ouverture voulue (0-100) ; None = ne rien envoyer (on garde l'ouverture actuelle).
 
-        La demande est la valeur (0-100 %) de l'entité choisie — par défaut la puissance chaudière
-        de la zone. Dès qu'elle est positive :
-          * ouverture proportionnelle : 1 % -> ouverture min, 100 % -> ouverture max ;
-          * sinon : ouverture fixe (100 % si le champ est vide).
-        Quand elle tombe à 0 : ouverture minimale (« ne jamais fermer »), sinon on garde l'ouverture
-        tant qu'aucune autre zone ne demande, sinon fermeture.
+        La demande est la valeur (0-100 %) de l'entité choisie, par défaut la demande chaudière
+        réelle de la zone. « Ouverture minimale » et « maximale » servent aux deux modes :
+          * demande > 0, proportionnel : 1 % -> minimale, 100 % -> maximale (vide : 0 / 100) ;
+          * demande > 0, fixe : ouverture maximale ;
+          * demande à 0 : on garde l'ouverture tant qu'aucune autre zone ne demande (si « garder
+            ouvert »), sinon ouverture minimale (vide = fermeture complète, 0 %).
         """
-        low = float(self.cfg.get(CONF_VALVE_OPEN_MIN, 15))
+        def limit(key: str, default: float, empty: float) -> float:
+            value = self.cfg.get(key, default)
+            return empty if value in (None, "") else float(value)
+
+        low = limit(CONF_VALVE_OPEN_MIN, 15, 0.0)
+        high = limit(CONF_VALVE_OPEN_MAX, 70, 100.0)
         if self.hvac_mode == "off":
             demand: float | None = 0.0
         else:
             source = self.cfg.get(CONF_VALVE_SOURCE)
-            demand = read_number(self.hass, source) if source else float(self.power_boiler)
+            demand = read_number(self.hass, source) if source else float(self.power_boiler_request)
         if demand is None:
             return None  # source indisponible : on ne touche à rien
         if demand > 0:
             if not self.cfg.get(CONF_VALVE_PROPORTIONAL, True):
-                level = self.cfg.get(CONF_VALVE_LEVEL)
-                return int(round(100 if level in (None, "") else float(level)))
-            high = float(self.cfg.get(CONF_VALVE_OPEN_MAX, 70))
+                return int(round(high))
             level = min(max(demand, 1.0), 100.0)
             return int(round(low + (high - low) * (level - 1) / 99))
-        if self.cfg.get(CONF_VALVE_NEVER_CLOSE, False):
-            return int(round(low))
         if self.cfg.get(CONF_VALVE_KEEP_OPEN, True) and not self._other_zone_demand():
             return None
-        return 0
+        return int(round(low))
 
     # ---- suivi de la position réelle des vannes ----
     @property
@@ -458,7 +478,7 @@ class ZoneController:
             zone._drive_valves()
 
     @callback
-    def _drive_valves(self) -> None:
+    def _send_valves(self, force: bool = False) -> None:
         """Pilote les vannes, en hiver seulement.
 
         Rien n'est envoyé en froid ni en été, ni si l'écart avec l'ouverture actuelle est inférieur
@@ -480,16 +500,23 @@ class ZoneController:
             state = self.hass.states.get(entity)
             if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
                 continue
+            in_place = False
             try:
                 diff = abs(round(float(state.state)) - value)
-                if diff == 0 or (diff < step and value != 0):
-                    self._valve_orders.pop(entity, None)  # la vanne a suivi : rien à renvoyer
-                    continue
+                in_place = diff == 0 or (diff < step and value != 0)
             except ValueError:
                 pass
-            sent = self._valve_orders.get(entity)
-            if sent and sent[0] == value and now - sent[1] < retry:
-                continue  # ordre déjà envoyé : certaines vannes mettent ~30 min à répondre
+            if in_place:
+                self._valve_orders.pop(entity, None)  # la vanne a suivi : rien à renvoyer
+                if not force:
+                    continue
+                self._sync_ignore.add(entity)  # début de demande : ordre envoyé quand même, sans l'attendre
+            else:
+                sent = self._valve_orders.get(entity)
+                if not force and sent and sent[0] == value and now - sent[1] < retry:
+                    continue  # ordre déjà envoyé : certaines vannes mettent ~30 min à répondre
+                self._sync_ignore.discard(entity)
+                self._sync_orders[entity] = now
             self._valve_orders[entity] = (value, now)
             domain = entity.split(".", 1)[0]  # number ou input_number
             self.hass.async_create_task(
@@ -497,6 +524,77 @@ class ZoneController:
                     domain, "set_value", {"entity_id": entity, "value": value}, blocking=False
                 )
             )
+
+    # ---- synchronisation vanne -> chaudière ----
+    @property
+    def pending_pairs(self) -> list[tuple[str, str]]:
+        """(vanne, capteur « commande en attente ») appariés dans l'ordre des deux listes."""
+        valves = list(self.cfg.get(CONF_VALVES) or [])
+        pending = list(self.cfg.get(CONF_VALVE_PENDING) or [])
+        return list(zip(valves, pending))
+
+    @property
+    def valve_sync_state(self) -> str:
+        if not self._sync_active or not self.pending_pairs:
+            return VS_INACTIVE
+        if self.valve_waiting:
+            return VS_WAITING
+        return VS_TIMEOUT if self._sync_timeout else VS_SYNCED
+
+    def _boiler_requesting(self) -> bool:
+        return self.hvac_mode != "off" and not self.suspended and self.power_boiler_request > 0
+
+    @callback
+    def _drive_valves(self) -> None:
+        """Envoie les ordres aux vannes puis évalue la synchronisation avec la chaudière."""
+        requesting = self._boiler_requesting()
+        started = requesting and not self._sync_active
+        if requesting != self._sync_active:  # début ou fin de demande : nouvelle séquence
+            self._sync_active = requesting
+            self._sync_released = False
+            self._sync_timeout = False
+            self._sync_since = time.time() if requesting else None
+            self._sync_orders.clear()
+            self._sync_seen.clear()
+            self._sync_ignore.clear()
+        self._send_valves(force=started)
+        self._evaluate_sync()
+
+    def _valves_confirmed(self, now: float) -> bool:
+        for valve, pending in self.pending_pairs:
+            if valve in self._sync_ignore:
+                continue  # vanne déjà en place : non attendue
+            state = self.hass.states.get(pending)
+            if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+                continue  # capteur absent : on ne bloque pas la chaudière
+            if state.state == "on":
+                self._sync_seen[valve] = True
+                return False
+            sent = self._sync_orders.get(valve)
+            if sent is not None and not self._sync_seen.get(valve) and now - sent < VALVE_SYNC_GRACE:
+                return False  # ordre à peine envoyé : le capteur n'a pas encore eu le temps de passer à On
+        return True
+
+    @callback
+    def _evaluate_sync(self) -> None:
+        was = self.valve_waiting
+        if not self._sync_active or not self.pending_pairs:
+            self.valve_waiting = False
+        elif not self._sync_released:
+            now = time.time()
+            if self._valves_confirmed(now):
+                self._sync_released = True
+            elif self._sync_since is not None and now - self._sync_since >= VALVE_SYNC_MAX_MIN * 60:
+                self._sync_released = self._sync_timeout = True
+                _LOGGER.warning(
+                    "%s : vanne(s) non confirmée(s) après %d min, chaudière autorisée quand même",
+                    self.entry.title, VALVE_SYNC_MAX_MIN,
+                )
+            self.valve_waiting = not self._sync_released
+        else:
+            self.valve_waiting = False
+        if was != self.valve_waiting:
+            self._notify()
 
     async def async_run_cycle(self) -> None:
         """Un cycle de calcul. Reprogramme aussi le suivant."""

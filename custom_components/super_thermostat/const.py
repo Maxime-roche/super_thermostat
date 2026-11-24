@@ -205,3 +205,13 @@ DEFAULT_HYBRID_OPTIONS = {
     CONF_HY_A_HYST_ON: 0.2, CONF_HY_A_HYST_OFF: 0.2, CONF_HY_A_SMOOTH: 0,
     CONF_HY_A_MIN_POWER: 5, CONF_HY_A_FORCE_FRACTION: 60, CONF_HY_A_FORCE_POWER: 10,
 }
+
+# --- synchronisation vanne / chaudière ---
+CONF_VALVE_PENDING = "valve_pending_entities"  # binary_sensor « commande en attente » (même ordre que les vannes)
+VALVE_SYNC_GRACE = 30       # s : délai laissé au capteur pour passer à On après l'envoi d'un ordre
+VALVE_SYNC_MAX_MIN = 25     # min : sécurité, la chaudière est autorisée même sans confirmation
+VS_INACTIVE = "inactive"
+VS_WAITING = "waiting"
+VS_SYNCED = "synced"
+VS_TIMEOUT = "timeout"
+VALVE_SYNC_STATES = [VS_INACTIVE, VS_WAITING, VS_SYNCED, VS_TIMEOUT]

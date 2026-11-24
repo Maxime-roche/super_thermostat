@@ -8,7 +8,7 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass, Bina
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import CONF_TYPE, CONF_VALVE_POSITIONS, TYPE_ZONE, TYPE_ZONE_HYBRID
+from .const import CONF_TYPE, CONF_VALVE_PENDING, CONF_VALVE_POSITIONS, TYPE_ZONE, TYPE_ZONE_HYBRID
 from .entity import ControllerEntity
 
 
@@ -44,6 +44,20 @@ async def async_setup_entry(
                     attrs_fn=lambda: {
                         "valves_in_alert": [v for v, i in c.valve_report.items() if i["alert"]],
                         "positions": c.valve_report,
+                    },
+                )
+            )
+        if c.cfg.get(CONF_VALVE_PENDING):
+            entities.append(
+                ControllerBinary(
+                    c, "valve_waiting", lambda: c.valve_waiting, None,
+                    attrs_fn=lambda: {
+                        "sync_state": c.valve_sync_state,
+                        "boiler_request": c.power_boiler_request,
+                        "pending": {
+                            v: (c.hass.states.get(p).state if c.hass.states.get(p) else None)
+                            for v, p in c.pending_pairs
+                        },
                     },
                 )
             )

@@ -3,7 +3,7 @@
 Deux régulations indépendantes, chacune avec ses réglages (onglets d'options dédiés) :
   * Chaudière : base lente asservie à la météo extérieure (gain x pertes x fraction),
     température lissée (moyenne glissante), hystérésis, temps minimaux allumée/éteinte,
-    réévaluée à sa propre période. Recalibrage quotidien doux du gain.
+    réévaluée à sa propre période. Apprentissage doux du gain à chaque fin de cycle.
   * Clim : boucle rapide, température peu ou pas lissée, hystérésis, temps minimaux,
     apprentissage de sa seule réactivité. Maintenue allumée tant que la fraction chaudière
     dépasse le seuil X (avec relâchement à X - 5 %).
@@ -24,7 +24,7 @@ from .const import (
     CONF_CYCLE, CONF_FAILSAFE_POWER, CONF_HY_A_CYCLE, CONF_HY_A_FORCE_FRACTION,
     CONF_HY_A_FORCE_POWER, CONF_HY_A_HYST_OFF, CONF_HY_A_HYST_ON, CONF_HY_A_MIN_OFF,
     CONF_HY_A_MIN_ON, CONF_HY_A_MIN_POWER, CONF_HY_A_SMOOTH, CONF_HY_B_CYCLE,
-    CONF_HY_B_HYST_OFF, CONF_HY_B_HYST_ON, CONF_HY_B_MIN_OFF, CONF_HY_B_MIN_ON,
+    CONF_HY_B_AUTOLEARN, CONF_HY_B_HYST_OFF, CONF_HY_B_HYST_ON, CONF_HY_B_MIN_OFF, CONF_HY_B_MIN_ON,
     CONF_HY_B_SMOOTH, CONF_MIN_POWER, CONF_OUTDOOR_ENTITY, DEFAULT_HYBRID_OPTIONS,
     HY_FORCE_RELEASE_GAP, Z_COOLING, Z_HEATING, Z_IDLE, Z_OFF, Z_SENSOR_FAILURE, Z_SUSPENDED,
 )
@@ -37,7 +37,6 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_COEFF_AC = 15.0       # gain réactif clim initial (%/°C)
 DEFAULT_GAIN_BOILER = 5.0     # gain base chaudière initial (%/°C)
 MAX_AC_LEARN_COUNT = 50
-MIN_DAILY_SAMPLES = 12        # nombre minimal de mesures dans la journée pour recalibrer
 
 
 class ZoneHybridController(ZoneController):
@@ -62,7 +61,7 @@ class ZoneHybridController(ZoneController):
         self.n_boiler_days: int = 0
         self._power_boiler_hybrid: int = 0
         self.power_ac: int = 0
-        self._daily_errors: list[float] = []
+        self._boiler_learned_today = False
         self._last_ac_temp_in: float | None = None
         self._last_ac_order: float | None = None
         self._last_ac_power: int = 0
@@ -98,7 +97,6 @@ class ZoneHybridController(ZoneController):
             "offset_ac": self.offset_ac,
             "gain_boiler": self.gain_boiler,
             "n_boiler_days": self.n_boiler_days,
-            "daily_errors": self._daily_errors,
             "last_ac_temp_in": self._last_ac_temp_in,
             "last_ac_order": self._last_ac_order,
             "last_ac_power": self._last_ac_power,
@@ -117,7 +115,6 @@ class ZoneHybridController(ZoneController):
         self.offset_ac = float(data.get("offset_ac", self.offset_ac))
         self.gain_boiler = float(data.get("gain_boiler", self.gain_boiler))
         self.n_boiler_days = int(data.get("n_boiler_days", self.n_boiler_days))
-        self._daily_errors = list(data.get("daily_errors") or [])
         self._last_ac_temp_in = data.get("last_ac_temp_in")
         self._last_ac_order = data.get("last_ac_order")
         self._last_ac_power = int(data.get("last_ac_power", 0))
@@ -133,27 +130,15 @@ class ZoneHybridController(ZoneController):
             async_track_time_change(self.hass, self._daily_recalibration, hour=0, minute=10, second=0)
         )
 
-    # --------------------------------------------------- recalibrage quotidien
+    # ------------------------------------------------- compteur de jours d'apprentissage
     @callback
     def _daily_recalibration(self, _now: Any = None) -> None:
-        """Recalibre doucement le gain de base chaudière sur l'écart moyen (signé) de la journée."""
-        if len(self._daily_errors) >= MIN_DAILY_SAMPLES:
-            mean_err = sum(self._daily_errors) / len(self._daily_errors)
-            if mean_err > 0.15:
-                adj = min(0.5, 0.2 * mean_err)
-                self.gain_boiler = round(min(30.0, self.gain_boiler + adj), 2)
-                self.n_boiler_days += 1
-                _LOGGER.info("%s : recalibrage chaudière +%.2f (gain: %.2f, écart moyen: %+.2f °C)",
-                             self.entry.title, adj, self.gain_boiler, mean_err)
-            elif mean_err < -0.15:
-                adj = min(0.5, 0.2 * abs(mean_err))
-                self.gain_boiler = round(max(0.5, self.gain_boiler - adj), 2)
-                self.n_boiler_days += 1
-                _LOGGER.info("%s : recalibrage chaudière -%.2f (gain: %.2f, écart moyen: %+.2f °C)",
-                             self.entry.title, adj, self.gain_boiler, mean_err)
-        self._daily_errors.clear()
-        self._save()
-        self._notify()
+        """À 00:10 : compte un jour d'apprentissage si le gain chaudière a bougé dans la journée."""
+        if self._boiler_learned_today:
+            self.n_boiler_days += 1
+            self._boiler_learned_today = False
+            self._save()
+            self._notify()
 
     # ------------------------------------------------------ outils régulation
     @staticmethod
@@ -279,12 +264,23 @@ class ZoneHybridController(ZoneController):
             )
             if due:
                 diff_b = consigne - t_b
+                # apprentissage doux à chaque fin de cycle (si l'auto-apprentissage est coché)
+                if (
+                    bool(self.cfg[CONF_HY_B_AUTOLEARN]) and self._b_on and self._b_last_eval != 0.0
+                    and self._b_last_order == consigne and abs(diff_b) > 0.15
+                ):
+                    step = min(0.5, 0.2 * abs(diff_b)) * min(1.0, self._f(CONF_HY_B_CYCLE) / 1440.0)
+                    self.gain_boiler = round(
+                        min(30.0, self.gain_boiler + step) if diff_b > 0 else max(0.5, self.gain_boiler - step), 3
+                    )
+                    self._boiler_learned_today = True
+                    _LOGGER.debug("%s : apprentissage chaudière -> gain %.3f (écart %+.2f °C)",
+                                  self.entry.title, self.gain_boiler, diff_b)
                 want = self._want(self._b_on, diff_b, self._f(CONF_HY_B_HYST_ON), self._f(CONF_HY_B_HYST_OFF))
                 self._b_on, self._b_since = self._gate(
                     self._b_on, self._b_since, now, want,
                     self._f(CONF_HY_B_MIN_ON), self._f(CONF_HY_B_MIN_OFF),
                 )
-                self._daily_errors.append(round(diff_b, 2))  # signé : permet aussi de baisser le gain
                 p_boiler = 0.0
                 if self._b_on:
                     delta_loss = max(0.0, consigne - (temp_out if temp_out is not None else temp_in))
@@ -387,7 +383,7 @@ class ZoneHybridController(ZoneController):
         self.n_ac = 1
         self.gain_boiler = DEFAULT_GAIN_BOILER
         self.n_boiler_days = 0
-        self._daily_errors.clear()
+        self._boiler_learned_today = False
         self._last_ac_temp_in = None
         self._last_ac_order = None
         self._last_ac_power = 0

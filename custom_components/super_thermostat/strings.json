@@ -322,7 +322,8 @@
           "hy_b_min_off": "Minimum off time",
           "hy_b_hyst_on": "Turn-on hysteresis",
           "hy_b_hyst_off": "Turn-off hysteresis",
-          "hy_b_smooth": "Temperature smoothing"
+          "hy_b_smooth": "Temperature smoothing",
+          "hy_b_autolearn": "Auto-learning"
         },
         "data_description": {
           "hy_b_cycle": "Boiler (slow base) re-evaluation period. Boiler power is held between cycles.",
@@ -331,7 +332,8 @@
           "hy_b_min_off": "Once cut, the boiler is not requested again before this delay.",
           "hy_b_hyst_on": "Requests heat once the smoothed temperature is below setpoint by this value.",
           "hy_b_hyst_off": "Cuts when the smoothed temperature exceeds setpoint by this value. Minimum times override hysteresis.",
-          "hy_b_smooth": "Moving average of the sensor for the boiler (high inertia). 0 = instantaneous."
+          "hy_b_smooth": "Moving average of the sensor for the boiler (high inertia). 0 = instantaneous.",
+          "hy_b_autolearn": "At the end of each cycle, adjusts the boiler gain from the observed error. Unchecked: the gain no longer changes (manual setting only)."
         }
       },
       "regulation_ac": {
@@ -351,7 +353,7 @@
         "data_description": {
           "hy_a_cycle": "Fast loop period and AC learning window (10 min recommended).",
           "hy_a_min_power": "Minimum AC power when requested.",
-          "autolearn": "Adjusts AC reactivity from the observed temperature rise.",
+          "autolearn": "Adjusts AC reactivity from the observed temperature rise. Unchecked: it no longer changes (manual setting only).",
           "hy_a_min_on": "AC is not cut before this delay.",
           "hy_a_min_off": "AC is not requested again before this delay (unless forced by the boiler fraction).",
           "hy_a_hyst_on": "Requests heat once the temperature is below setpoint by this value.",

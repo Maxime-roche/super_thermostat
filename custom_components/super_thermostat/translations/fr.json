@@ -322,7 +322,8 @@
           "hy_b_min_off": "Temps minimal éteinte",
           "hy_b_hyst_on": "Hystérésis d'allumage",
           "hy_b_hyst_off": "Hystérésis d'extinction",
-          "hy_b_smooth": "Lissage de la température"
+          "hy_b_smooth": "Lissage de la température",
+          "hy_b_autolearn": "Auto-apprentissage"
         },
         "data_description": {
           "hy_b_cycle": "Période de réévaluation de la chaudière (base lente). Entre deux cycles, la puissance chaudière est conservée.",
@@ -331,7 +332,8 @@
           "hy_b_min_off": "Une fois coupée, la chaudière n'est pas redemandée avant ce délai.",
           "hy_b_hyst_on": "Demande dès que la température lissée est sous la consigne de cette valeur.",
           "hy_b_hyst_off": "Coupe quand la température lissée dépasse la consigne de cette valeur. Les temps minimaux l'emportent sur l'hystérésis.",
-          "hy_b_smooth": "Moyenne glissante de la sonde pour la chaudière (inertie forte). 0 = température instantanée."
+          "hy_b_smooth": "Moyenne glissante de la sonde pour la chaudière (inertie forte). 0 = température instantanée.",
+          "hy_b_autolearn": "À chaque fin de cycle, ajuste le gain de la chaudière d'après l'écart observé. Décoché : le gain ne change plus (réglage manuel seulement)."
         }
       },
       "regulation_ac": {
@@ -351,7 +353,7 @@
         "data_description": {
           "hy_a_cycle": "Période de la boucle rapide et fenêtre d'apprentissage de la clim (10 min recommandé).",
           "hy_a_min_power": "Puissance minimale de la clim quand elle est demandée.",
-          "autolearn": "Ajuste la réactivité de la clim d'après la montée en température observée.",
+          "autolearn": "Ajuste la réactivité de la clim d'après la montée en température observée. Décoché : elle ne change plus (réglage manuel seulement).",
           "hy_a_min_on": "La clim n'est pas coupée avant ce délai.",
           "hy_a_min_off": "La clim n'est pas redemandée avant ce délai (sauf forçage par la fraction chaudière).",
           "hy_a_hyst_on": "Demande dès que la température est sous la consigne de cette valeur.",

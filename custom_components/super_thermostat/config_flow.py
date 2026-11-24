@@ -31,7 +31,7 @@ from .const import (
     CONF_HY_A_CYCLE, CONF_HY_A_FORCE_FRACTION, CONF_HY_A_FORCE_POWER, CONF_HY_A_HYST_OFF,
     CONF_HY_A_HYST_ON, CONF_HY_A_MIN_OFF, CONF_HY_A_MIN_ON, CONF_HY_A_MIN_POWER,
     CONF_HY_A_SMOOTH, CONF_HY_B_CYCLE, CONF_HY_B_HYST_OFF, CONF_HY_B_HYST_ON,
-    CONF_HY_B_MIN_OFF, CONF_HY_B_MIN_ON, CONF_HY_B_SMOOTH, DEFAULT_HYBRID_OPTIONS,
+    CONF_HY_B_MIN_OFF, CONF_HY_B_MIN_ON, CONF_HY_B_SMOOTH, CONF_HY_B_AUTOLEARN, DEFAULT_HYBRID_OPTIONS,
 )
 
 
@@ -150,6 +150,7 @@ HYBRID_BOILER_REG = vol.Schema(
     {
         vol.Required(CONF_HY_B_CYCLE): _num(5, 240, 1, "min"),
         vol.Required(CONF_MIN_POWER): _num(0, 50, 1, "%"),
+        vol.Required(CONF_HY_B_AUTOLEARN): sel.BooleanSelector(),
         vol.Required(CONF_HY_B_MIN_ON): _num(0, 240, 1, "min"),
         vol.Required(CONF_HY_B_MIN_OFF): _num(0, 240, 1, "min"),
         vol.Required(CONF_HY_B_HYST_ON): _num(0, 5, 0.1, "°C"),

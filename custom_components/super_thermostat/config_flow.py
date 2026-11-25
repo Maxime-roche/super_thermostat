@@ -28,7 +28,7 @@ from .const import (
     TYPE_ZONE_HYBRID,
 )
 from .const import (
-    CONF_VALVE_PENDING, CONF_HY_A_CYCLE, CONF_HY_A_FORCE_FRACTION, CONF_HY_A_FORCE_POWER, CONF_HY_A_HYST_OFF,
+    CONF_VALVE_CLOSE, CONF_VALVE_PENDING, CONF_HY_A_CYCLE, CONF_HY_A_FORCE_FRACTION, CONF_HY_A_FORCE_POWER, CONF_HY_A_HYST_OFF,
     CONF_HY_A_HYST_ON, CONF_HY_A_MIN_OFF, CONF_HY_A_MIN_ON, CONF_HY_A_MIN_POWER,
     CONF_HY_A_SMOOTH, CONF_HY_B_CYCLE, CONF_HY_B_HYST_OFF, CONF_HY_B_HYST_ON,
     CONF_HY_B_MIN_OFF, CONF_HY_B_MIN_ON, CONF_HY_B_SMOOTH, CONF_HY_B_AUTOLEARN, DEFAULT_HYBRID_OPTIONS,
@@ -105,6 +105,7 @@ ZONE_VALVES = vol.Schema(
         vol.Optional(CONF_VALVE_SOURCE): _numeric_entity(),
         vol.Required(CONF_VALVE_KEEP_OPEN): sel.BooleanSelector(),
         vol.Required(CONF_VALVE_PROPORTIONAL): sel.BooleanSelector(),
+        vol.Required(CONF_VALVE_CLOSE): _num(0, 100, 1, "%"),
         vol.Optional(CONF_VALVE_OPEN_MIN): _num(0, 100, 1, "%"),
         vol.Required(CONF_VALVE_OPEN_MAX): _num(0, 100, 1, "%"),
         vol.Required(CONF_VALVE_MIN_STEP): _num(0, 50, 1, "%"),

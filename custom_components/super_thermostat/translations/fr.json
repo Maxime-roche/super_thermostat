@@ -159,6 +159,7 @@
           "valve_source": "Demande suivie (entité 0-100 %)",
           "valve_keep_open": "Garder ouvert tant qu'aucune autre zone ne demande",
           "valve_proportional": "Ouverture proportionnelle",
+          "valve_close_level": "Fermeture vanne",
           "valve_open_min": "Ouverture minimale",
           "valve_open_max": "Ouverture maximale",
           "valve_min_step": "Écart minimal avant de changer l'ouverture"
@@ -166,13 +167,14 @@
         "data_description": {
           "valve_entities": "Entités number d'ouverture (ex. …_valve_setpoint). Rien n'est envoyé en froid ni en été.",
           "valve_position_entities": "Facultatif : un capteur par vanne (ex. …_valve_position), dans le même ordre que les vannes ci-dessus. Sert à comparer la position réelle à la consigne envoyée.",
-          "valve_pending_entities": "Facultatif : un capteur binaire par vanne (ex. …_command_pending), dans le même ordre que les vannes. Quand la zone demande la chaudière, la vanne reçoit son ordre d'ouverture et la chaudière n'est autorisée qu'une fois ce capteur revenu à Off. Sécurité : après 25 min sans confirmation, la chaudière est autorisée quand même.",
+          "valve_pending_entities": "Facultatif : un capteur binaire par vanne (ex. …_command_pending), dans le même ordre que les vannes. La zone attend ses vannes (puissance chaudière à 0 %) tant que TOUTES sont en attente, au démarrage d'une demande ; dès qu'une ne l'est plus, la chaudière est autorisée. Sécurité : après 25 min d'attente continue, la chaudière est autorisée quand même.",
           "valve_retry_minutes": "Après un ordre, certaines vannes sur pile mettent jusqu'à ~30 min à répondre : le même ordre n'est pas renvoyé avant ce délai, puis il l'est si la vanne n'a pas suivi. Un ordre différent est envoyé tout de suite.",
           "valve_alert_minutes": "Si la position réelle s'écarte de plus de 10 % de la consigne pendant cette durée, l'indicateur « Vanne qui ne suit pas » s'active. 0 = pas d'alerte. Le délai repart de zéro à chaque nouvel ordre.",
           "valve_source": "Entité dont la valeur (0-100 %) pilote l'ouverture : « Puissance chaudière » ou « Puissance de chauffe » de la zone, la fraction chaudière, ou toute entité de ton choix. Vide = puissance chaudière de la zone.",
-          "valve_keep_open": "Quand la demande tombe à 0, la vanne reste telle quelle sauf si une autre zone demande de la chaudière : elle prend alors l'ouverture minimale (0 % si vide). Désactivé : ouverture minimale immédiate.",
+          "valve_keep_open": "Quand la demande tombe à 0, la vanne reste telle quelle sauf si une autre zone demande de la chaudière : elle prend alors la valeur « Fermeture vanne ». Désactivé : « Fermeture vanne » immédiate.",
           "valve_proportional": "Activé : l'ouverture suit la demande entre l'ouverture minimale et maximale. Désactivé : la vanne s'ouvre à l'ouverture maximale dès que la zone demande de la chaleur.",
-          "valve_open_min": "Mode proportionnel : limite basse (ouverture à 1 % de demande). Mode fixe : ouverture quand la vanne doit se fermer. Vide = fermeture complète (0 %).",
+          "valve_close_level": "Ouverture de la vanne quand le thermostat est éteint, et quand une autre zone est en demande si « Garder ouvert » est activé (ou si « Garder ouvert » est désactivé et que la demande tombe à 0). 0 = fermeture complète.",
+          "valve_open_min": "Mode proportionnel : limite basse (ouverture à 1 % de demande). Vide = 0 %. Non utilisée en mode fixe.",
           "valve_open_max": "Mode proportionnel : limite haute (ouverture à 100 % de demande). Mode fixe : ouverture quand la zone demande de la chaleur.",
           "valve_min_step": "La vanne n'est modifiée que si l'ouverture voulue diffère d'au moins ce pourcentage de l'ouverture actuelle (la fermeture complète est toujours appliquée)."
         }

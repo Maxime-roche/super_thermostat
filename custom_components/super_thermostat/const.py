@@ -51,6 +51,7 @@ VALVE_ALERT_GAP = 10  # écart fixe (%) entre consigne et position réelle avant
 CONF_VALVE_SOURCE = "valve_source"            # entité 0-100 % qui pilote l'ouverture (vide = puissance chaudière de la zone)
 CONF_VALVE_NEVER_CLOSE = "valve_never_close"  # ne jamais fermer complètement : minimum d'ouverture
 CONF_VALVE_OPEN_MIN = "valve_open_min"
+CONF_VALVE_CLOSE = "valve_close_level"  # ouverture « fermée » (thermostat éteint, autre zone en demande)
 CONF_VALVE_OPEN_MAX = "valve_open_max"
 CONF_VALVE_MIN_STEP = "valve_min_step"
 CONF_VALVE_KEEP_OPEN = "valve_keep_open"
@@ -67,6 +68,7 @@ DEFAULT_ZONE_OPTIONS = {
     CONF_THRESHOLD_HOT: 100,
     CONF_OFFSET_NEXT_FULL: 0,
     CONF_VALVE_LEVEL: 100,  # ancien mode « demande »
+    CONF_VALVE_CLOSE: 0,
     CONF_VALVE_OPEN_MIN: 15,
     CONF_VALVE_OPEN_MAX: 70,
     CONF_VALVE_MIN_STEP: 5,

@@ -469,16 +469,16 @@
         "name": "Décalage clim"
       },
       "coeff_in_heat": {
-        "name": "Coefficient chauffe (intérieur)"
+        "name": "Puissance de chauffe (montée en T°)"
       },
       "coeff_out_heat": {
-        "name": "Coefficient chauffe (extérieur)"
+        "name": "Compensation déperditions (isolation)"
       },
       "coeff_in_cool": {
-        "name": "Coefficient froid (intérieur)"
+        "name": "Puissance clim (baisse en T°)"
       },
       "coeff_out_cool": {
-        "name": "Coefficient froid (extérieur)"
+        "name": "Protection chaleur (isolation)"
       },
       "offset_heat": {
         "name": "Offset chauffe"

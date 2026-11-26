@@ -7,6 +7,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .const import CONF_TYPE, TYPE_BOILER
 from .entity import ControllerEntity
 
 
@@ -18,21 +19,27 @@ class BoilerSwitch(ControllerEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool:
-        return bool(getattr(self._ctrl, self._attr))
+        return bool(getattr(self._ctrl, self._attr, False))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        await getattr(self._ctrl, self._setter)(True)
+        setter = getattr(self._ctrl, self._setter, None)
+        if setter:
+            await setter(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        await getattr(self._ctrl, self._setter)(False)
+        setter = getattr(self._ctrl, self._setter, None)
+        if setter:
+            await setter(False)
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
     c = entry.runtime_data
-    async_add_entities([
+    entities = [
         BoilerSwitch(c, "enabled", "enabled", "async_set_enabled"),
         BoilerSwitch(c, "dry_run", "dry_run", "async_set_dry_run"),
-        BoilerSwitch(c, "use_fraction", "use_fraction", "async_set_use_fraction"),
-    ])
+    ]
+    if entry.data.get(CONF_TYPE) == TYPE_BOILER:
+        entities.append(BoilerSwitch(c, "use_fraction", "use_fraction", "async_set_use_fraction"))
+    async_add_entities(entities)

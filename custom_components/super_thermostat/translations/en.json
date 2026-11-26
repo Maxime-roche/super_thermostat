@@ -469,16 +469,16 @@
         "name": "AC offset"
       },
       "coeff_in_heat": {
-        "name": "Heating coefficient (indoor)"
+        "name": "Heating power (indoor rise)"
       },
       "coeff_out_heat": {
-        "name": "Heating coefficient (outdoor)"
+        "name": "Heat loss compensation (insulation)"
       },
       "coeff_in_cool": {
-        "name": "Cooling coefficient (indoor)"
+        "name": "Cooling power (indoor drop)"
       },
       "coeff_out_cool": {
-        "name": "Cooling coefficient (outdoor)"
+        "name": "Heat protection (insulation)"
       },
       "offset_heat": {
         "name": "Heating offset"

@@ -43,7 +43,7 @@ from .const import (
     CONF_VALVE_CLOSE, CONF_VALVE_PENDING, VALVE_SYNC_GRACE, VALVE_SYNC_MAX_MIN, VS_INACTIVE, VS_SYNCED,
     VS_TIMEOUT, VS_WAITING,
 )
-from .helpers import parse_preset_names, read_number
+from .helpers import parse_preset_names, read_number, slugify_name
 from .notify import FailureNotifier
 
 _LOGGER = logging.getLogger(__name__)
@@ -746,16 +746,29 @@ class ZoneController:
 
     async def async_set_preset(self, preset: str | None) -> None:
         """Applique un préréglage (identifiant ou nom affiché) : ses deux consignes."""
-        if preset in (None, "none"):
+        if preset in (None, "none", "None", ""):
             self.preset = None
             self._save()
             self._notify()
             return
-        # accepte l'identifiant, le nom affiché ou un alias (« Jour » -> home)
-        slug = next(
-            (s for s in (*parse_preset_names(preset), preset) if s in self.preset_names), None
-        )
-        if slug is None:
+        target = str(preset).strip().lower()
+        slug: str | None = None
+        if target in self.preset_names:
+            slug = target
+        elif target in PRESET_ALIASES and PRESET_ALIASES[target] in self.preset_names:
+            slug = PRESET_ALIASES[target]
+        else:
+            for k, shown in self.preset_names.items():
+                label = PRESET_LABELS.get(k, shown).lower()
+                if target in (shown.lower(), label, slugify_name(label), slugify_name(shown)):
+                    slug = k
+                    break
+            if slug is None:
+                parsed = parse_preset_names(preset)
+                slug = next((s for s in parsed if s in self.preset_names), None)
+
+        if slug is None or slug not in self.presets:
+            _LOGGER.warning("%s : préréglage inconnu %s", self.entry.title, preset)
             return
         self.preset = slug
         values = self.presets[slug]

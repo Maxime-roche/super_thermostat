@@ -1,13 +1,14 @@
 """Zone combinée chaudière (base lente) + climatisation (appoint rapide).
 
-Deux régulations indépendantes, chacune avec ses réglages (onglets d'options dédiés) :
-  * Chaudière : base lente asservie à la météo extérieure (gain x pertes x fraction),
-    température lissée (moyenne glissante), hystérésis, temps minimaux allumée/éteinte,
-    réévaluée à sa propre période. Apprentissage doux du gain à chaque fin de cycle.
-  * Clim : boucle rapide, température peu ou pas lissée, hystérésis, temps minimaux,
-    apprentissage de sa seule réactivité. Maintenue allumée tant que la fraction chaudière
-    dépasse le seuil X (avec relâchement à X - 5 %).
-Les temps minimaux l'emportent toujours sur l'hystérésis.
+Deux régulations coordonnées :
+  * Chaudière (chauffe) : régulation avec ses 2 variables (montée en T° intérieure et
+    compensation des déperditions extérieures), pondérée par la fraction chaudière.
+    Température lissée (moyenne glissante), hystérésis et durées minimales on/off.
+  * Clim :
+    - En chauffe (appoint rapide) : allumée si forçage (fraction chaudière) ou
+      déficit intérieur important.
+    - En froid : régulation complète avec ses 2 variables (puissance froid intérieure
+      et protection contre la chaleur extérieure).
 """
 from __future__ import annotations
 
@@ -17,8 +18,7 @@ from collections import deque
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.event import async_track_time_change
+from homeassistant.core import HomeAssistant
 
 from .const import (
     CONF_CYCLE, CONF_FAILSAFE_POWER, CONF_HY_A_CYCLE, CONF_HY_A_FORCE_FRACTION,
@@ -28,15 +28,11 @@ from .const import (
     CONF_HY_B_SMOOTH, CONF_MIN_POWER, CONF_OUTDOOR_ENTITY, DEFAULT_HYBRID_OPTIONS,
     HY_FORCE_RELEASE_GAP, Z_COOLING, Z_HEATING, Z_IDLE, Z_OFF, Z_SENSOR_FAILURE, Z_SUSPENDED,
 )
-from .engine import COOL, HEAT, resolve_sense
+from .engine import COOL, HEAT, learn, resolve_sense
 from .helpers import read_number
 from .zone import ZoneController
 
 _LOGGER = logging.getLogger(__name__)
-
-DEFAULT_COEFF_AC = 15.0       # gain réactif clim initial (%/°C)
-DEFAULT_GAIN_BOILER = 5.0     # gain base chaudière initial (%/°C)
-MAX_AC_LEARN_COUNT = 50
 
 
 class ZoneHybridController(ZoneController):
@@ -48,23 +44,17 @@ class ZoneHybridController(ZoneController):
         super().__init__(hass, entry)
         for key, value in DEFAULT_HYBRID_OPTIONS.items():
             self.cfg.setdefault(key, value)
-        # anciennes entrées : l'ancien « cycle » devient le cycle de la clim (pas de migration)
         raw = {**entry.data, **entry.options}
         ac_cycle = raw.get(CONF_HY_A_CYCLE, raw.get(CONF_CYCLE, DEFAULT_HYBRID_OPTIONS[CONF_HY_A_CYCLE]))
         self.cfg[CONF_HY_A_CYCLE] = ac_cycle
-        self.params.cycle_min = float(ac_cycle)  # timer de base + fenêtre d'apprentissage clim
+        self.params.cycle_min = float(ac_cycle)
 
-        self.coeff_ac: float = DEFAULT_COEFF_AC
-        self.n_ac: int = 1
-        self.offset_ac: float = 0.0
-        self.gain_boiler: float = DEFAULT_GAIN_BOILER
-        self.n_boiler_days: int = 0
         self._power_boiler_hybrid: int = 0
         self.power_ac: int = 0
-        self._boiler_learned_today = False
-        self._last_ac_temp_in: float | None = None
-        self._last_ac_order: float | None = None
-        self._last_ac_power: int = 0
+        self._last_cool_temp_in: float | None = None
+        self._last_cool_order: float | None = None
+        self._last_cool_power: int = 0
+
         # régulation : état allumé/éteint de chaque boucle
         self._b_on = False
         self._b_since = 0.0
@@ -79,7 +69,7 @@ class ZoneHybridController(ZoneController):
     def _f(self, key: str) -> float:
         return float(self.cfg[key])
 
-    # ---- Override : power_boiler est géré en propre ici (pas fraction * power_heat) ----
+    # ---- Override : power_boiler est géré en propre ici ----
     @property
     def power_boiler_request(self) -> int:  # type: ignore[override]
         return self._power_boiler_hybrid
@@ -92,16 +82,11 @@ class ZoneHybridController(ZoneController):
     def _data(self) -> dict[str, Any]:
         data = super()._data()
         data.update({
-            "coeff_ac": self.coeff_ac,
-            "n_ac": self.n_ac,
-            "offset_ac": self.offset_ac,
-            "gain_boiler": self.gain_boiler,
-            "n_boiler_days": self.n_boiler_days,
-            "last_ac_temp_in": self._last_ac_temp_in,
-            "last_ac_order": self._last_ac_order,
-            "last_ac_power": self._last_ac_power,
             "b_on": self._b_on, "b_since": self._b_since,
             "a_on": self._a_on, "a_since": self._a_since,
+            "last_cool_temp_in": self._last_cool_temp_in,
+            "last_cool_order": self._last_cool_order,
+            "last_cool_power": self._last_cool_power,
         })
         return data
 
@@ -110,35 +95,19 @@ class ZoneHybridController(ZoneController):
         data = await self._store.async_load()
         if not data:
             return
-        self.coeff_ac = float(data.get("coeff_ac", self.coeff_ac))
-        self.n_ac = int(data.get("n_ac", self.n_ac))
-        self.offset_ac = float(data.get("offset_ac", self.offset_ac))
-        self.gain_boiler = float(data.get("gain_boiler", self.gain_boiler))
-        self.n_boiler_days = int(data.get("n_boiler_days", self.n_boiler_days))
-        self._last_ac_temp_in = data.get("last_ac_temp_in")
-        self._last_ac_order = data.get("last_ac_order")
-        self._last_ac_power = int(data.get("last_ac_power", 0))
+        # Rétro-compatibilité si migration depuis ancienne version
+        if "gain_boiler" in data and not data.get("state", {}).get("coeff_out_heat"):
+            self.state.coeff_out_heat = float(data["gain_boiler"])
+        if "coeff_ac" in data and not data.get("state", {}).get("coeff_in_cool"):
+            self.state.coeff_in_cool = float(data["coeff_ac"])
+
         self._b_on = bool(data.get("b_on", False))
         self._b_since = float(data.get("b_since", 0.0))
         self._a_on = bool(data.get("a_on", False))
         self._a_since = float(data.get("a_since", 0.0))
-
-    # -------------------------------------------------------------- lifecycle
-    async def async_start(self) -> None:
-        await super().async_start()
-        self._unsubs.append(
-            async_track_time_change(self.hass, self._daily_recalibration, hour=0, minute=10, second=0)
-        )
-
-    # ------------------------------------------------- compteur de jours d'apprentissage
-    @callback
-    def _daily_recalibration(self, _now: Any = None) -> None:
-        """À 00:10 : compte un jour d'apprentissage si le gain chaudière a bougé dans la journée."""
-        if self._boiler_learned_today:
-            self.n_boiler_days += 1
-            self._boiler_learned_today = False
-            self._save()
-            self._notify()
+        self._last_cool_temp_in = data.get("last_cool_temp_in")
+        self._last_cool_order = data.get("last_cool_order")
+        self._last_cool_power = int(data.get("last_cool_power", 0))
 
     # ------------------------------------------------------ outils régulation
     @staticmethod
@@ -182,12 +151,11 @@ class ZoneHybridController(ZoneController):
     def _stop_all(self) -> None:
         self.power_boiler_request = 0
         self.power_ac = 0
-        self._last_ac_power = 0
         self._reset_regulation()
 
     # ----------------------------------------------------------------- cycles
     async def async_run_cycle(self) -> None:
-        """Cycle de la boucle rapide ; la chaudière se réévalue à sa propre période."""
+        """Cycle de calcul."""
         self._schedule_next()
 
         if self.hvac_mode == "off":
@@ -233,26 +201,6 @@ class ZoneHybridController(ZoneController):
 
         if self.sense == HEAT:
             consigne = self.target_heat
-
-            # --- Apprentissage continu de la clim (réactivité propre) ---
-            if (
-                self.params.autolearn
-                and self._last_ac_temp_in is not None
-                and self._last_ac_order == consigne
-                and 0 < self._last_ac_power < 100
-            ):
-                delta_obs = temp_in - self._last_ac_temp_in
-                if delta_obs > 0.05:
-                    cycle_ratio = max(0.5, float(self.params.cycle_min) / 10.0)
-                    estimate = (
-                        self.coeff_ac
-                        * (self._last_ac_order - self._last_ac_temp_in)
-                        / (delta_obs * cycle_ratio)
-                    )
-                    estimate = min(max(estimate, self.coeff_ac / 2.0), self.coeff_ac * 2.0)
-                    self.coeff_ac = round((self.coeff_ac * self.n_ac + estimate) / (self.n_ac + 1), 2)
-                    self.n_ac = min(self.n_ac + 1, MAX_AC_LEARN_COUNT)
-
             t_b = self._smooth(self._buf_b, self._f(CONF_HY_B_SMOOTH), now, temp_in)
             t_a = self._smooth(self._buf_a, self._f(CONF_HY_A_SMOOTH), now, temp_in)
 
@@ -264,18 +212,21 @@ class ZoneHybridController(ZoneController):
             )
             if due:
                 diff_b = consigne - t_b
-                # apprentissage doux à chaque fin de cycle (si l'auto-apprentissage est coché)
+
+                # Auto-apprentissage des coefficients de chauffe (intérieur + extérieur)
                 if (
-                    bool(self.cfg[CONF_HY_B_AUTOLEARN]) and self._b_on and self._b_last_eval != 0.0
-                    and self._b_last_order == consigne and abs(diff_b) > 0.15
+                    self.params.autolearn
+                    and bool(self.cfg[CONF_HY_B_AUTOLEARN])
+                    and self._b_on
+                    and self._b_last_eval != 0.0
+                    and self._b_last_order == consigne
+                    and 0 < self._power_boiler_hybrid < 100
                 ):
-                    step = min(0.5, 0.2 * abs(diff_b)) * min(1.0, self._f(CONF_HY_B_CYCLE) / 1440.0)
-                    self.gain_boiler = round(
-                        min(30.0, self.gain_boiler + step) if diff_b > 0 else max(0.5, self.gain_boiler - step), 3
-                    )
-                    self._boiler_learned_today = True
-                    _LOGGER.debug("%s : apprentissage chaudière -> gain %.3f (écart %+.2f °C)",
-                                  self.entry.title, self.gain_boiler, diff_b)
+                    self.state.last_state = HEAT
+                    self.state.last_order = consigne
+                    self.state.last_power = self._power_boiler_hybrid
+                    learn(self.state, t_b, temp_out)
+
                 want = self._want(self._b_on, diff_b, self._f(CONF_HY_B_HYST_ON), self._f(CONF_HY_B_HYST_OFF))
                 self._b_on, self._b_since = self._gate(
                     self._b_on, self._b_since, now, want,
@@ -283,10 +234,14 @@ class ZoneHybridController(ZoneController):
                 )
                 p_boiler = 0.0
                 if self._b_on:
-                    delta_loss = max(0.0, consigne - (temp_out if temp_out is not None else temp_in))
-                    raw = max(0.0, min(100.0, self.gain_boiler * delta_loss * (fraction / 100.0)))
+                    diff_in = max(0.0, consigne - t_b)
+                    diff_out = max(0.0, consigne - (temp_out if temp_out is not None else temp_in))
+                    power_calc = diff_in * self.state.coeff_in_heat + diff_out * self.state.coeff_out_heat
+                    raw = max(0.0, min(100.0, power_calc * (fraction / 100.0)))
                     p_boiler = raw if raw >= self._f(CONF_MIN_POWER) else 0.0
                 self.power_boiler_request = int(round(p_boiler))
+                self.state.last_temp_in = t_b
+                self.state.last_temp_out = temp_out if temp_out is not None else self.state.last_temp_out
                 self._b_last_eval = now
                 self._b_last_order = consigne
 
@@ -310,17 +265,13 @@ class ZoneHybridController(ZoneController):
                 )
             p_ac = 0.0
             if self._a_on:
-                raw = max(0.0, min(100.0, self.coeff_ac * diff_a + self.offset_ac))
                 floor = max(self._f(CONF_HY_A_MIN_POWER), self._f(CONF_HY_A_FORCE_POWER) if forced_on else 0.0)
+                raw = max(0.0, min(100.0, diff_a * self.state.coeff_in_heat))
                 p_ac = max(raw, floor)
 
             self.power_ac = int(round(p_ac))
             self.power_heat = max(self.power_boiler_request, self.power_ac)
             self.power_cool = 0
-
-            self._last_ac_temp_in = temp_in
-            self._last_ac_order = consigne
-            self._last_ac_power = self.power_ac
 
             status = Z_HEATING if self.power_heat > 0 else Z_IDLE
             self._apply(status, heat=self.power_heat, cool=0)
@@ -328,11 +279,26 @@ class ZoneHybridController(ZoneController):
         elif self.sense == COOL:
             self._reset_regulation()
             consigne = self.target_cool
-            diff_in = temp_in - consigne
+            diff_in = max(0.0, temp_in - consigne)
+            diff_out = max(0.0, (temp_out if temp_out is not None else temp_in) - consigne)
             min_p = self._f(CONF_MIN_POWER)
+
+            # Auto-apprentissage en froid pour la clim (intérieur + extérieur)
+            if (
+                self.params.autolearn
+                and self._last_cool_temp_in is not None
+                and self._last_cool_order == consigne
+                and 0 < self._last_cool_power < 100
+            ):
+                self.state.last_state = COOL
+                self.state.last_order = consigne
+                self.state.last_power = self._last_cool_power
+                learn(self.state, temp_in, temp_out)
+
             if diff_in > 0:
-                raw_cool = self.coeff_ac * diff_in
-                p_cool = max(0.0, min(100.0, raw_cool)) if raw_cool >= min_p else 0.0
+                power_calc = diff_in * self.state.coeff_in_cool + diff_out * self.state.coeff_out_cool
+                raw_cool = max(0.0, min(100.0, power_calc))
+                p_cool = raw_cool if raw_cool >= min_p else 0.0
             else:
                 p_cool = 0.0
 
@@ -340,53 +306,43 @@ class ZoneHybridController(ZoneController):
             self.power_ac = 0
             self.power_heat = 0
             self.power_cool = int(round(p_cool))
-            self._last_ac_power = 0
+            self._last_cool_temp_in = temp_in
+            self._last_cool_order = consigne
+            self._last_cool_power = self.power_cool
+            self.state.last_temp_in = temp_in
+            self.state.last_temp_out = temp_out if temp_out is not None else self.state.last_temp_out
 
             status = Z_COOLING if self.power_cool > 0 else Z_IDLE
             self._apply(status, heat=0, cool=self.power_cool)
 
     # ------------------------------------------------------------ commandes UI
     def get_value(self, key: str) -> float:
-        if key == "coeff_in_ac":
-            return float(self.coeff_ac)
-        if key == "gain_boiler":
-            return float(self.gain_boiler)
+        if key in ("gain_boiler", "coeff_out_heat"):
+            return float(self.state.coeff_out_heat)
+        if key in ("coeff_in_ac", "coeff_in_heat"):
+            return float(self.state.coeff_in_heat)
         if key == "offset_ac":
-            return float(self.offset_ac)
+            return 0.0
         return super().get_value(key)
 
     def learn_count(self, key: str) -> int | None:
-        if key == "coeff_in_ac":
-            return self.n_ac
         if key == "gain_boiler":
-            return self.n_boiler_days
+            return self.state.n_out_heat
+        if key == "coeff_in_ac":
+            return self.state.n_in_heat
         return super().learn_count(key)
 
     async def async_set_value(self, key: str, value: float) -> None:
-        if key == "coeff_in_ac":
-            self.coeff_ac = float(value)
-            self.n_ac = 10
-        elif key == "gain_boiler":
-            self.gain_boiler = float(value)
-            self.n_boiler_days = 7
+        if key == "gain_boiler":
+            key = "coeff_out_heat"
+        elif key == "coeff_in_ac":
+            key = "coeff_in_heat"
         elif key == "offset_ac":
-            self.offset_ac = float(value)
-        else:
-            await super().async_set_value(key, value)
             return
-        self._save()
-        self._notify()
-        await self.async_run_cycle()
+        await super().async_set_value(key, value)
 
     async def async_reset_learning(self) -> None:
-        self.coeff_ac = DEFAULT_COEFF_AC
-        self.n_ac = 1
-        self.gain_boiler = DEFAULT_GAIN_BOILER
-        self.n_boiler_days = 0
-        self._boiler_learned_today = False
-        self._last_ac_temp_in = None
-        self._last_ac_order = None
-        self._last_ac_power = 0
-        self._save()
-        self._notify()
-        await self.async_run_cycle()
+        await super().async_reset_learning()
+        self._last_cool_temp_in = None
+        self._last_cool_order = None
+        self._last_cool_power = 0

@@ -44,11 +44,18 @@ def _zone_specs(c) -> list[Spec]:
 
 
 def _zone_hybrid_specs(c) -> list[Spec]:
-    return [
-        Spec("gain_boiler", 0.5, 30, 0.1, COEFF_UNIT),
-        Spec("coeff_in_ac", 1, 100, 0.1, COEFF_UNIT),
-        Spec("offset_ac", -50, 50, 1, PERCENTAGE),
-    ]
+    specs: list[Spec] = []
+    if c.has_heat:
+        specs += [
+            Spec("coeff_in_heat", 0, 300, 0.01, COEFF_UNIT),
+            Spec("coeff_out_heat", 0, 300, 0.01, COEFF_UNIT),
+        ]
+    if c.has_cool:
+        specs += [
+            Spec("coeff_in_cool", 0, 300, 0.01, COEFF_UNIT),
+            Spec("coeff_out_cool", 0, 300, 0.01, COEFF_UNIT),
+        ]
+    return specs
 
 
 def _preset_specs(c) -> list[tuple[Spec, str]]:

@@ -1,13 +1,12 @@
-# 🌡️ Super Thermostat
+<p align="center">
+  <img src="custom_components/super_thermostat/brand/icon.png" alt="Super Thermostat" width="120">
+</p>
+
+# Super Thermostat
 
 > **Le confort parfait dans chaque pièce, au degré près, sans une seule ligne de YAML !**  
 > Inspiré du légendaire moteur temporel à **auto-apprentissage** du plugin *Thermostat* de Jeedom, repensé et magnifié pour Home Assistant.
 
----
-
-![Schéma de fonctionnement](docs/schema.svg)
-
----
 
 ## ⏱️ Le principe en 30 secondes : « Le Chef d'Orchestre »
 
@@ -55,6 +54,12 @@ Pour régler votre thermostat comme un pro, voici les 4 notions clés démystifi
 ## 🎛️ Les 4 Types d'Entrées
 
 Créez vos briques en quelques clics dans **Paramètres → Appareils et services → Ajouter une intégration → Super Thermostat**.
+
+> Dans l'ordre conseillé de mise en route :
+> 1. [⚖️ Fraction Chaudière](#-3-la-fraction-chaudière)
+> 2. [🏠 Zone Normale (Radiateurs ou Clim seule)](#-1-la-zone-normale-radiateurs-ou-clim-seule)
+> 3. [⚡ Zone Combinée (Chaudière + Clim)](#-2-la-zone-combinée-chaudière--climatisation)
+> 4. [🔥 Gestion Chaudière & ❄️ Gestion Clim](#-4-gestion-chaudière--gestion-clim)
 
 ---
 

@@ -296,6 +296,7 @@
           "adjust_interval": "Setpoint adjustment interval",
           "ac_min_on": "Minimum run time",
           "mode_delay": "Mode → setpoint pause",
+          "defrost_min_power": "Defrost: power above",
           "defrost_max_power": "Defrost: power below",
           "defrost_max_outdoor": "Defrost: outdoor temperature below",
           "defrost_max_minutes": "Defrost: maximum hold time"
@@ -305,6 +306,7 @@
           "adjust_interval": "Minimum time between two setpoint changes.",
           "ac_min_on": "Minimum run time before switching off (protects the compressor).",
           "mode_delay": "Pause between the mode change and the setpoint.",
+          "defrost_min_power": "Below this value the AC is idle (compressor stopped), not defrosting. Avoids mistaking standby for a defrost.",
           "defrost_max_power": "The AC is considered defrosting when its power is below this value (and heating, and outdoor temperature low enough).",
           "defrost_max_outdoor": "Defrost is only detected when the outdoor temperature is below this value (0 °C = below zero).",
           "defrost_max_minutes": "Safety: after this time the normal logic resumes, even if the sensors still look like a defrost."

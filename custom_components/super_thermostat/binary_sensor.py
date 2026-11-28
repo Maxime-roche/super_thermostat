@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
-    CONF_DEFROST_MAX_MINUTES, CONF_DEFROST_MAX_OUTDOOR, CONF_DEFROST_MAX_POWER,
+    CONF_DEFROST_MAX_MINUTES, CONF_DEFROST_MAX_OUTDOOR, CONF_DEFROST_MAX_POWER, CONF_DEFROST_MIN_POWER,
     CONF_DEFROST_OUTDOOR_ENTITY, CONF_DEFROST_POWER_ENTITY, CONF_TYPE, CONF_VALVE_PENDING,
     CONF_VALVE_POSITIONS, TYPE_AC, TYPE_ZONE, TYPE_ZONE_HYBRID,
 )
@@ -75,7 +75,9 @@ async def async_setup_entry(
                     attrs_fn=lambda: {
                         "power": c.defrost_power,
                         "outdoor_temperature": c.defrost_outdoor,
+                        "min_power": c.cfg[CONF_DEFROST_MIN_POWER],
                         "max_power": c.cfg[CONF_DEFROST_MAX_POWER],
+                        "armed": c._defrost_armed,
                         "max_outdoor_temperature": c.cfg[CONF_DEFROST_MAX_OUTDOOR],
                         "max_minutes": c.cfg[CONF_DEFROST_MAX_MINUTES],
                         "seconds_since_start": c.defrost_seconds,

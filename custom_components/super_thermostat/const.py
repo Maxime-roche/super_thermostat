@@ -172,12 +172,14 @@ CONF_MODE_DELAY = "mode_delay"
 # dégivrage : la clim n'est pas commandée (ni extinction ni réglage) tant qu'il dure
 CONF_DEFROST_POWER_ENTITY = "defrost_power_entity"      # puissance électrique de la clim (W)
 CONF_DEFROST_OUTDOOR_ENTITY = "defrost_outdoor_entity"  # température extérieure
+CONF_DEFROST_MIN_POWER = "defrost_min_power"            # W : sous ce seuil la clim est au repos, pas en dégivrage
 CONF_DEFROST_MAX_POWER = "defrost_max_power"            # W : dégivrage si puissance sous ce seuil
 CONF_DEFROST_MAX_OUTDOOR = "defrost_max_outdoor"        # °C : dégivrage si extérieur sous ce seuil
 CONF_DEFROST_MAX_MINUTES = "defrost_max_minutes"        # durée maximale de maintien
 DEFAULT_AC_OPTIONS = {
     CONF_START_DELAY: 10, CONF_ADJUST_INTERVAL: 5, CONF_AC_MIN_ON: 5, CONF_MODE_DELAY: 20,
-    CONF_DEFROST_MAX_POWER: 500, CONF_DEFROST_MAX_OUTDOOR: 0, CONF_DEFROST_MAX_MINUTES: 15,
+    CONF_DEFROST_MIN_POWER: 100, CONF_DEFROST_MAX_POWER: 500, CONF_DEFROST_MAX_OUTDOOR: 0,
+    CONF_DEFROST_MAX_MINUTES: 15,
 }
 A_DISABLED = "disabled"
 A_IDLE = "idle"

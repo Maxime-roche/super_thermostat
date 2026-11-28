@@ -296,6 +296,7 @@
           "adjust_interval": "Intervalle de réglage de la consigne",
           "ac_min_on": "Durée mini d'allumage",
           "mode_delay": "Pause mode → consigne",
+          "defrost_min_power": "Dégivrage : puissance au-dessus de",
           "defrost_max_power": "Dégivrage : puissance sous",
           "defrost_max_outdoor": "Dégivrage : température extérieure sous",
           "defrost_max_minutes": "Dégivrage : durée maximale de maintien"
@@ -305,6 +306,7 @@
           "adjust_interval": "Délai minimum entre deux réglages de consigne.",
           "ac_min_on": "Durée minimale d'allumage avant extinction (protège le compresseur).",
           "mode_delay": "Pause entre le changement de mode et l'envoi de la consigne.",
+          "defrost_min_power": "Sous cette valeur la clim est au repos (compresseur arrêté), pas en dégivrage. Évite de prendre la veille pour un dégivrage.",
           "defrost_max_power": "La clim est considérée en dégivrage quand sa puissance est sous cette valeur (en chauffe et avec une température extérieure assez basse).",
           "defrost_max_outdoor": "Le dégivrage n'est détecté que si la température extérieure est sous cette valeur (0 °C = négative).",
           "defrost_max_minutes": "Sécurité : passé ce délai la logique normale reprend, même si les capteurs ressemblent encore à un dégivrage."

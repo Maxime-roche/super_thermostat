@@ -20,6 +20,8 @@ from .boiler_logic import total_demand
 from .const import (
     A_COOLING, A_DISABLED, A_FRACTION_CUTOFF, A_HEATING, A_IDLE, A_SUMMER, CONF_ADJUST_INTERVAL,
     CONF_AC_FRACTION, CONF_AC_MIN_ON, CONF_CLIMATE, CONF_COOL_SOURCES, CONF_MODE_DELAY, CONF_SOURCES,
+    CONF_DEFROST_MAX_MINUTES, CONF_DEFROST_MAX_OUTDOOR, CONF_DEFROST_MAX_POWER,
+    CONF_DEFROST_OUTDOOR_ENTITY, CONF_DEFROST_POWER_ENTITY,
     CONF_START_DELAY, CONF_SUMMER, DEFAULT_AC_OPTIONS, DOMAIN, STORAGE_VERSION,
 )
 from .helpers import read_number
@@ -54,6 +56,13 @@ class ACController:
         self.source_values: dict[str, float | None] = {}
         self.cool_values: dict[str, float | None] = {}
         self.active: str | None = None
+
+        # dégivrage : tant qu'il dure, on n'envoie aucune commande à la clim
+        self.defrost = False
+        self.defrost_power: float | None = None
+        self.defrost_outdoor: float | None = None
+        self._defrost_since = 0.0
+        self._defrost_armed = False  # puissance vue au-dessus du seuil depuis l'allumage / la dernière coupure
 
         self._last_change = 0.0
         self._on_since = 0.0
@@ -102,7 +111,7 @@ class ACController:
     # -------------------------------------------------------------- lifecycle
     async def async_start(self) -> None:
         watched = [*self.cfg.get(CONF_SOURCES, []), *(self.cfg.get(CONF_COOL_SOURCES) or []), self.cfg[CONF_CLIMATE]]
-        for key in (CONF_AC_FRACTION, CONF_SUMMER):
+        for key in (CONF_AC_FRACTION, CONF_SUMMER, CONF_DEFROST_POWER_ENTITY, CONF_DEFROST_OUTDOOR_ENTITY):
             if self.cfg.get(key):
                 watched.append(self.cfg[key])
         self._unsubs.append(async_track_state_change_event(self.hass, watched, self._on_event))
@@ -128,6 +137,51 @@ class ACController:
     @callback
     def _on_tick(self, _now: Any) -> None:
         self._evaluate()
+
+    # --------------------------------------------------------------- dégivrage
+    @property
+    def defrost_seconds(self) -> int | None:
+        return round(time.time() - self._defrost_since) if self.defrost else None
+
+    def _update_defrost(self, now: float, mode: str | None) -> None:
+        """Dégivrage : clim en chauffe, extérieur sous le seuil et puissance sous le seuil.
+
+        Sécurités : la détection n'est possible qu'après avoir vu la puissance au-dessus du seuil
+        depuis l'allumage (ou depuis la dernière coupure par la durée maximale), et elle ne dure
+        jamais plus que la durée maximale. Capteur indisponible = pas de dégivrage.
+        """
+        power_entity = self.cfg.get(CONF_DEFROST_POWER_ENTITY)
+        outdoor_entity = self.cfg.get(CONF_DEFROST_OUTDOOR_ENTITY)
+        self.defrost_power = read_number(self.hass, power_entity)
+        self.defrost_outdoor = read_number(self.hass, outdoor_entity, temperature=True)
+        max_power = float(self.cfg[CONF_DEFROST_MAX_POWER])
+        max_outdoor = float(self.cfg[CONF_DEFROST_MAX_OUTDOOR])
+        limit_s = float(self.cfg[CONF_DEFROST_MAX_MINUTES]) * 60
+
+        heating = mode == "heat"
+        if not heating:
+            self._defrost_armed = False
+        elif self.defrost_power is not None and self.defrost_power >= max_power:
+            self._defrost_armed = True
+
+        condition = (
+            heating and bool(power_entity) and bool(outdoor_entity)
+            and self.defrost_power is not None and self.defrost_outdoor is not None
+            and self.defrost_outdoor < max_outdoor and self.defrost_power < max_power
+        )
+        if not condition:
+            self.defrost = False
+        elif self.defrost:
+            if now - self._defrost_since >= limit_s:
+                self.defrost = False
+                self._defrost_armed = False
+                _LOGGER.info(
+                    "%s : durée maximale de dégivrage atteinte (%s min), reprise de la gestion normale",
+                    self.entry.title, self.cfg[CONF_DEFROST_MAX_MINUTES],
+                )
+        elif self._defrost_armed:
+            self.defrost = True
+            self._defrost_since = now
 
     # ------------------------------------------------------------- évaluation
     @callback
@@ -162,6 +216,8 @@ class ACController:
             except (TypeError, ValueError):
                 target = None
 
+        self._update_defrost(now, mode)
+
         block = ac_block_reason(self.fraction, self.values["fraction_cutoff"])
         active, force_off, hands_off = ac_resolve(
             heat_demand=heat_demand, cool_demand=cool_demand, fraction_blocked=block is not None,
@@ -190,6 +246,8 @@ class ACController:
                 min_on_s=float(self.cfg[CONF_AC_MIN_ON]) * 60,
                 setpoint=self.setpoint, current_target=target,
             )
+            if self.defrost:
+                actions = []  # dégivrage en cours : aucune commande (ni extinction, ni consigne, ni mode)
             if block and active != COOL:
                 self.status = A_FRACTION_CUTOFF
             elif active == COOL and (mode == "cool" or "mode_on" in actions):
@@ -198,6 +256,8 @@ class ACController:
                 self.status = A_HEATING
             else:
                 self.status = A_IDLE
+            if self.defrost:
+                self.status = A_HEATING
         self.pending = actions
 
         # --- pourquoi (ne pas) agir : visible dans les attributs du statut ---
@@ -207,6 +267,8 @@ class ACController:
             reason = "summer_entity_on"
         elif mode is None:
             reason = "climate_unavailable"
+        elif self.defrost:
+            reason = "defrost_hold"
         elif actions:
             reason = "dry_run_would_act" if self.dry_run else "acting"
         elif block and active != HEAT and active != COOL:
@@ -231,6 +293,10 @@ class ACController:
             "climate_target": target,
             "setpoint_computed": self.setpoint,
             "seconds_since_last_change": round(now - self._last_change) if self._last_change else None,
+            "defrost": self.defrost,
+            "defrost_power": self.defrost_power,
+            "defrost_outdoor_temperature": self.defrost_outdoor,
+            "defrost_seconds": self.defrost_seconds,
         }
         if reason != self.reason:
             _LOGGER.info(
@@ -262,6 +328,7 @@ class ACController:
             self._last_change = time.time()
             if "mode_on" in actions:
                 self._on_since = self._last_change
+                self._defrost_armed = False  # le compresseur doit d'abord être vu en marche
             self._save()
         except Exception:  # noqa: BLE001
             _LOGGER.exception("%s : échec de la commande clim %s", self.entry.title, actions)

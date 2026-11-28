@@ -32,6 +32,8 @@ from .const import (
     CONF_HY_A_HYST_ON, CONF_HY_A_MIN_OFF, CONF_HY_A_MIN_ON, CONF_HY_A_MIN_POWER,
     CONF_HY_A_SMOOTH, CONF_HY_B_CYCLE, CONF_HY_B_HYST_OFF, CONF_HY_B_HYST_ON,
     CONF_HY_B_MIN_OFF, CONF_HY_B_MIN_ON, CONF_HY_B_SMOOTH, CONF_HY_B_AUTOLEARN, DEFAULT_HYBRID_OPTIONS,
+    CONF_DEFROST_MAX_MINUTES, CONF_DEFROST_MAX_OUTDOOR, CONF_DEFROST_MAX_POWER,
+    CONF_DEFROST_OUTDOOR_ENTITY, CONF_DEFROST_POWER_ENTITY,
 )
 
 
@@ -221,6 +223,8 @@ AC_ENTITIES = vol.Schema(
         vol.Optional(CONF_SUMMER): sel.EntitySelector(
             sel.EntitySelectorConfig(domain=["input_boolean", "switch", "binary_sensor"])
         ),
+        vol.Optional(CONF_DEFROST_POWER_ENTITY): _numeric_entity(),
+        vol.Optional(CONF_DEFROST_OUTDOOR_ENTITY): _temp_sensor(),
     }
 )
 AC_TUNING = vol.Schema(
@@ -229,6 +233,9 @@ AC_TUNING = vol.Schema(
         vol.Required(CONF_ADJUST_INTERVAL): _num(1, 120, 1, "min"),
         vol.Required(CONF_AC_MIN_ON): _num(0, 60, 1, "min"),
         vol.Required(CONF_MODE_DELAY): _num(0, 120, 1, "s"),
+        vol.Required(CONF_DEFROST_MAX_POWER): _num(0, 5000, 10, "W"),
+        vol.Required(CONF_DEFROST_MAX_OUTDOOR): _num(-30, 30, 0.5, "°C"),
+        vol.Required(CONF_DEFROST_MAX_MINUTES): _num(1, 60, 1, "min"),
     }
 )
 CLEARABLE = {
@@ -237,6 +244,7 @@ CLEARABLE = {
     CONF_ASSOCIATED_CLIMATE: "",
     CONF_NOTIFY_SERVICE: "", CONF_NOTIFY_MESSAGE: "",
     CONF_AC_FRACTION: "", CONF_SUMMER: "", CONF_ZONE_SEASON: "", CONF_COOL_SOURCES: [],
+    CONF_DEFROST_POWER_ENTITY: "", CONF_DEFROST_OUTDOOR_ENTITY: "",
 }
 
 

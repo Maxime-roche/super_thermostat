@@ -28,7 +28,7 @@ PLATFORMS = {
         Platform.SENSOR, Platform.BINARY_SENSOR, Platform.NUMBER, Platform.SWITCH,
     ],
     TYPE_FRACTION: [Platform.SENSOR],
-    TYPE_AC: [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH],
+    TYPE_AC: [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.NUMBER, Platform.SWITCH],
 }
 
 

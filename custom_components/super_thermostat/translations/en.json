@@ -93,14 +93,18 @@
           "power_sources": "Heating power sources (summed, capped at 100 %)",
           "cool_sources": "Cooling power sources (optional)",
           "fraction_entity": "Boiler fraction (AC cut-off)",
-          "summer_entity": "Summer season entity (optional)"
+          "summer_entity": "Summer season entity (optional)",
+          "defrost_power_entity": "Defrost: AC electric power sensor (optional)",
+          "defrost_outdoor_entity": "Defrost: outdoor temperature (optional)"
         },
         "data_description": {
           "climate_entity": "The climate entity of the AC to control.",
           "power_sources": "sensor / number / input_number entities: a zone, or any other source you add.",
           "cool_sources": "Optional: cooling powers of the zones. Without them the AC only handles heating.",
           "fraction_entity": "The AC stops heating when this fraction reaches the cut-off. Empty = no cut-off.",
-          "summer_entity": "When on (summer): the AC cools (if cooling sources are set), otherwise the manager leaves the AC alone."
+          "summer_entity": "When on (summer): the AC cools (if cooling sources are set), otherwise the manager leaves the AC alone.",
+          "defrost_power_entity": "Power of the AC in W (e.g. sensor.salon_clim_reversible_electric_consumption_w). Without it, defrost detection is off.",
+          "defrost_outdoor_entity": "Needed for defrost detection: no command is sent to the AC while it defrosts."
         }
       }
     },
@@ -271,14 +275,18 @@
           "power_sources": "Heating power sources (summed, capped at 100 %)",
           "cool_sources": "Cooling power sources (optional)",
           "fraction_entity": "Boiler fraction (AC cut-off)",
-          "summer_entity": "Summer season entity (optional)"
+          "summer_entity": "Summer season entity (optional)",
+          "defrost_power_entity": "Defrost: AC electric power sensor (optional)",
+          "defrost_outdoor_entity": "Defrost: outdoor temperature (optional)"
         },
         "data_description": {
           "climate_entity": "The climate entity of the AC to control.",
           "power_sources": "sensor / number / input_number entities: a zone, or any other source you add.",
           "cool_sources": "Optional: cooling powers of the zones. Without them the AC only handles heating.",
           "fraction_entity": "The AC stops heating when this fraction reaches the cut-off. Empty = no cut-off.",
-          "summer_entity": "When on (summer): the AC cools (if cooling sources are set), otherwise the manager leaves the AC alone."
+          "summer_entity": "When on (summer): the AC cools (if cooling sources are set), otherwise the manager leaves the AC alone.",
+          "defrost_power_entity": "Power of the AC in W (e.g. sensor.salon_clim_reversible_electric_consumption_w). Without it, defrost detection is off.",
+          "defrost_outdoor_entity": "Needed for defrost detection: no command is sent to the AC while it defrosts."
         }
       },
       "ac_tuning": {
@@ -287,13 +295,19 @@
           "start_delay": "Delay before switching on",
           "adjust_interval": "Setpoint adjustment interval",
           "ac_min_on": "Minimum run time",
-          "mode_delay": "Mode → setpoint pause"
+          "mode_delay": "Mode → setpoint pause",
+          "defrost_max_power": "Defrost: power below",
+          "defrost_max_outdoor": "Defrost: outdoor temperature below",
+          "defrost_max_minutes": "Defrost: maximum hold time"
         },
         "data_description": {
           "start_delay": "Minimum time since the last change before switching the AC on.",
           "adjust_interval": "Minimum time between two setpoint changes.",
           "ac_min_on": "Minimum run time before switching off (protects the compressor).",
-          "mode_delay": "Pause between the mode change and the setpoint."
+          "mode_delay": "Pause between the mode change and the setpoint.",
+          "defrost_max_power": "The AC is considered defrosting when its power is below this value (and heating, and outdoor temperature low enough).",
+          "defrost_max_outdoor": "Defrost is only detected when the outdoor temperature is below this value (0 °C = below zero).",
+          "defrost_max_minutes": "Safety: after this time the normal logic resumes, even if the sensors still look like a defrost."
         }
       },
       "fraction_source": {
@@ -456,6 +470,9 @@
       },
       "valve_waiting": {
         "name": "Waiting for the valve"
+      },
+      "defrost": {
+        "name": "Defrost in progress"
       }
     },
     "number": {

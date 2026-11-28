@@ -93,14 +93,18 @@
           "power_sources": "Sources de puissance de chauffe (additionnées, plafonnées à 100 %)",
           "cool_sources": "Sources de puissance de froid (facultatif)",
           "fraction_entity": "Fraction chaudière (coupure de la clim)",
-          "summer_entity": "Entité « saison été » (facultatif)"
+          "summer_entity": "Entité « saison été » (facultatif)",
+          "defrost_power_entity": "Dégivrage : capteur de puissance électrique de la clim (facultatif)",
+          "defrost_outdoor_entity": "Dégivrage : température extérieure (facultatif)"
         },
         "data_description": {
           "climate_entity": "L'entité climate de la clim à piloter.",
           "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez.",
           "cool_sources": "Facultatif : puissances de froid des zones. Sans elles, la clim ne gère que la chauffe.",
           "fraction_entity": "La clim ne chauffe plus quand cette fraction atteint le seuil de coupure. Vide = pas de coupure.",
-          "summer_entity": "Si activée (été) : la clim refroidit (si des sources de froid sont indiquées), sinon la gestion ne touche plus à la clim."
+          "summer_entity": "Si activée (été) : la clim refroidit (si des sources de froid sont indiquées), sinon la gestion ne touche plus à la clim.",
+          "defrost_power_entity": "Puissance de la clim en W (ex. sensor.salon_clim_reversible_electric_consumption_w). Sans lui, la détection du dégivrage est désactivée.",
+          "defrost_outdoor_entity": "Nécessaire à la détection du dégivrage : aucune commande n'est envoyée à la clim pendant qu'elle dégivre."
         }
       }
     },
@@ -271,14 +275,18 @@
           "power_sources": "Sources de puissance de chauffe (additionnées, plafonnées à 100 %)",
           "cool_sources": "Sources de puissance de froid (facultatif)",
           "fraction_entity": "Fraction chaudière (coupure de la clim)",
-          "summer_entity": "Entité « saison été » (facultatif)"
+          "summer_entity": "Entité « saison été » (facultatif)",
+          "defrost_power_entity": "Dégivrage : capteur de puissance électrique de la clim (facultatif)",
+          "defrost_outdoor_entity": "Dégivrage : température extérieure (facultatif)"
         },
         "data_description": {
           "climate_entity": "L'entité climate de la clim à piloter.",
           "power_sources": "Entités sensor / number / input_number : une zone, ou toute autre source que vous ajoutez.",
           "cool_sources": "Facultatif : puissances de froid des zones. Sans elles, la clim ne gère que la chauffe.",
           "fraction_entity": "La clim ne chauffe plus quand cette fraction atteint le seuil de coupure. Vide = pas de coupure.",
-          "summer_entity": "Si activée (été) : la clim refroidit (si des sources de froid sont indiquées), sinon la gestion ne touche plus à la clim."
+          "summer_entity": "Si activée (été) : la clim refroidit (si des sources de froid sont indiquées), sinon la gestion ne touche plus à la clim.",
+          "defrost_power_entity": "Puissance de la clim en W (ex. sensor.salon_clim_reversible_electric_consumption_w). Sans lui, la détection du dégivrage est désactivée.",
+          "defrost_outdoor_entity": "Nécessaire à la détection du dégivrage : aucune commande n'est envoyée à la clim pendant qu'elle dégivre."
         }
       },
       "ac_tuning": {
@@ -287,13 +295,19 @@
           "start_delay": "Délai avant allumage",
           "adjust_interval": "Intervalle de réglage de la consigne",
           "ac_min_on": "Durée mini d'allumage",
-          "mode_delay": "Pause mode → consigne"
+          "mode_delay": "Pause mode → consigne",
+          "defrost_max_power": "Dégivrage : puissance sous",
+          "defrost_max_outdoor": "Dégivrage : température extérieure sous",
+          "defrost_max_minutes": "Dégivrage : durée maximale de maintien"
         },
         "data_description": {
           "start_delay": "Délai minimum depuis le dernier réglage avant d'allumer la clim.",
           "adjust_interval": "Délai minimum entre deux réglages de consigne.",
           "ac_min_on": "Durée minimale d'allumage avant extinction (protège le compresseur).",
-          "mode_delay": "Pause entre le changement de mode et l'envoi de la consigne."
+          "mode_delay": "Pause entre le changement de mode et l'envoi de la consigne.",
+          "defrost_max_power": "La clim est considérée en dégivrage quand sa puissance est sous cette valeur (en chauffe et avec une température extérieure assez basse).",
+          "defrost_max_outdoor": "Le dégivrage n'est détecté que si la température extérieure est sous cette valeur (0 °C = négative).",
+          "defrost_max_minutes": "Sécurité : passé ce délai la logique normale reprend, même si les capteurs ressemblent encore à un dégivrage."
         }
       },
       "fraction_source": {
@@ -456,6 +470,9 @@
       },
       "valve_waiting": {
         "name": "En attente de la vanne"
+      },
+      "defrost": {
+        "name": "Dégivrage en cours"
       }
     },
     "number": {
